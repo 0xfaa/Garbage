@@ -80,7 +80,8 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
         fn parseCmdPrintInt(self: *@This()) !?*Node {
             if (self.tokens[self.i.*].type == .CmdPrintInt) {
                 self.i.* += 1;
-                return Node.create(self.allocator, .CmdPrintInt, null, null, self.tokens[self.i.* - 1].value);
+                const expression = try self.parseExpression();
+                return Node.create(self.allocator, .CmdPrintInt, expression, null, self.tokens[self.i.* - 1].value);
             }
             return null;
         }
@@ -121,22 +122,21 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
         }
 
         fn parseStatement(self: *@This()) !*Node {
+            var stmt: *Node = undefined;
             switch (self.tokens[self.i.*].type) {
-                .VariableDeclaration => return try self.parseVariableDeclaration(),
+                .VariableDeclaration => stmt = try self.parseVariableDeclaration(),
+                .CmdPrintInt => stmt = try self.parseCmdPrintInt() orelse return error.UnexpectedToken,
                 .SayIdentifier => {
                     if (self.i.* + 1 < self.tokens.len and self.tokens[self.i.* + 1].type == .Assignment) {
-                        return try self.parseAssignment();
+                        stmt = try self.parseAssignment();
                     } else {
-                        return try self.parseExpression();
+                        stmt = try self.parseExpression();
                     }
                 },
-                .CmdPrintInt => {
-                    self.i.* += 1;
-                    const expression = try self.parseExpression();
-                    return Node.create(self.allocator, .CmdPrintInt, expression, null, null);
-                },
-                else => return try self.parseExpression(),
+                else => stmt = try self.parseExpression(),
             }
+
+            return stmt;
         }
 
         fn parseProgram(self: *@This()) !*Program {
@@ -145,6 +145,15 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
             while (self.i.* < self.tokens.len and self.tokens[self.i.*].type != .EOF) {
                 const stmt = try self.parseStatement();
                 try program.statements.append(stmt);
+
+                // Check for EOS
+                if (self.i.* < self.tokens.len) {
+                    if (self.tokens[self.i.*].type == .EOS) {
+                        self.i.* += 1;
+                    } else if (self.tokens[self.i.*].type != .EOF) {
+                        return error.ExpectedEndOfStatement;
+                    }
+                }
             }
 
             return program;

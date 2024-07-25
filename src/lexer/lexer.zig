@@ -9,6 +9,15 @@ pub fn lexer(input: []const u8, allocator: *const std.mem.Allocator) !std.ArrayL
     while (i < input.len) : (i += 1) {
         const c = input[i];
         switch (c) {
+            // @printInt
+            '@' => {
+                if (input.len >= i + 9 and std.mem.eql(u8, input[i .. i + 9], "@printInt")) {
+                    try tokens.append(.{ .type = EToken.CmdPrintInt, .value = "@printInt" });
+                    i += 8; // We'll increment by 1 more in the loop
+                } else {
+                    return error.InvalidCharacter;
+                }
+            },
             '0'...'9' => {
                 const start = i;
                 while (i < input.len and std.ascii.isDigit(input[i])) : (i += 1) {}
@@ -32,13 +41,6 @@ pub fn lexer(input: []const u8, allocator: *const std.mem.Allocator) !std.ArrayL
             '/' => try tokens.append(.{ .type = EToken.Div, .value = "/" }),
             '%' => try tokens.append(.{ .type = EToken.Modulo, .value = "%" }),
             '=' => try tokens.append(.{ .type = EToken.Assignment, .value = "=" }),
-            // @printInt
-            '@' => {
-                if (input.len >= i + 9 and std.mem.eql(u8, input[i .. i + 9], "@printInt")) {
-                    try tokens.append(.{ .type = EToken.CmdPrintInt, .value = "@printInt" });
-                    i += 9;
-                }
-            },
             '\n' => try tokens.append(.{ .type = EToken.EOS, .value = "\\n" }),
             ' ', '\t' => {},
             else => return error.InvalidCharacter,

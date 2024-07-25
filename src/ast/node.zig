@@ -34,6 +34,7 @@ pub const Node = struct {
             .value = switch (@TypeOf(value)) {
                 i64 => .{ .integer = value },
                 []const u8 => .{ .str = value },
+                @TypeOf(null) => .{ .str = "null" },
                 else => @compileError("Unsupported value type: " ++ @typeName(@TypeOf(value))),
             },
         };

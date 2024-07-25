@@ -1,2 +1,3 @@
-@printInt 92
-say a = 10
+say number1 = 64
+say number2 = 32
+@printInt number1 / number2 % 2
