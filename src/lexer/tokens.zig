@@ -8,6 +8,10 @@ pub const EToken = enum {
     Div,
     Modulo,
 
+    // Parentheses
+    LParen,
+    RParen,
+
     // Builtin features
     CmdPrintInt,
 
@@ -21,5 +25,14 @@ pub const EToken = enum {
     SayIdentifier,
     Assignment,
     VariableDeclaration,
+
+    // If syntax
+    If,
+    LBrace,
+    RBrace,
+
+    // While loop
+    While,
+    Colon,
 };
 pub const TToken = struct { type: EToken, value: []const u8 };

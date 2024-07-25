@@ -37,24 +37,32 @@ add sp, sp, #21
 ldp x30, x29, [sp], #16
 ret
 
-_main:
-    stp x29, x30, [sp, #-16]!
+_main:    stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #16
-    mov x0, #64
+    sub sp, sp, #32
+    mov x0, #1
     str x0, [x29, #-16]
-    mov x0, #32
+    mov x0, #0
     str x0, [x29, #-24]
     ldr x0, [x29, #-16]
+    cmp x0, #0
+    beq .L0
+    ldr x0, [x29, #-16]
+    str x0, [sp, #-16]!
+    mov x0, #1
     mov x1, x0
-    ldr x0, [x29, #-24]
-    sdiv x0, x1, x0
-    mov x1, x0
-    mov x0, #2
-    sdiv x2, x1, x0
-    mul x2, x2, x0
-    sub x0, x1, x2
+    ldr x0, [sp], #16
+    add x0, x0, x1
     bl _printInt
+    mov x0, #1
+    str x0, [x29, #-24]
+.L0:
+    ldr x0, [x29, #-24]
+    cmp x0, #0
+    beq .L1
+    mov x0, #69
+    bl _printInt
+.L1:
     add sp, sp, #16
     ldp x29, x30, [sp], #16
 

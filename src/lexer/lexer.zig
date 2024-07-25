@@ -9,6 +9,8 @@ pub fn lexer(input: []const u8, allocator: *const std.mem.Allocator) !std.ArrayL
     while (i < input.len) : (i += 1) {
         const c = input[i];
         switch (c) {
+            '{' => try tokens.append(.{ .type = EToken.LBrace, .value = "{" }),
+            '}' => try tokens.append(.{ .type = EToken.RBrace, .value = "}" }),
             // @printInt
             '@' => {
                 if (input.len >= i + 9 and std.mem.eql(u8, input[i .. i + 9], "@printInt")) {
@@ -30,6 +32,8 @@ pub fn lexer(input: []const u8, allocator: *const std.mem.Allocator) !std.ArrayL
                 const identifier = input[start..i];
                 if (std.mem.eql(u8, identifier, "say")) {
                     try tokens.append(.{ .type = EToken.VariableDeclaration, .value = identifier });
+                } else if (std.mem.eql(u8, identifier, "if")) {
+                    try tokens.append(.{ .type = EToken.If, .value = identifier });
                 } else {
                     try tokens.append(.{ .type = EToken.SayIdentifier, .value = identifier });
                 }
@@ -41,6 +45,8 @@ pub fn lexer(input: []const u8, allocator: *const std.mem.Allocator) !std.ArrayL
             '/' => try tokens.append(.{ .type = EToken.Div, .value = "/" }),
             '%' => try tokens.append(.{ .type = EToken.Modulo, .value = "%" }),
             '=' => try tokens.append(.{ .type = EToken.Assignment, .value = "=" }),
+            '(' => try tokens.append(.{ .type = EToken.LParen, .value = "(" }),
+            ')' => try tokens.append(.{ .type = EToken.RParen, .value = ")" }),
             '\n' => try tokens.append(.{ .type = EToken.EOS, .value = "\\n" }),
             ' ', '\t' => {},
             else => return error.InvalidCharacter,

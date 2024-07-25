@@ -4,17 +4,22 @@ const Node = @import("../ast/node.zig").Node;
 
 const SymbolTable = struct {
     variables: std.StringHashMap(i64),
+    current_offset: i64,
     allocator: std.mem.Allocator,
+    label_counter: usize,
 
     fn init(allocator: std.mem.Allocator) SymbolTable {
         return .{
             .variables = std.StringHashMap(i64).init(allocator),
+            .current_offset = 16, // Start after saved fp and lr
             .allocator = allocator,
+            .label_counter = 0,
         };
     }
 
-    fn addVariable(self: *@This(), name: []const u8, offset: i64) !void {
-        try self.variables.put(name, offset);
+    fn addVariable(self: *@This(), name: []const u8) !void {
+        try self.variables.put(name, self.current_offset);
+        self.current_offset += 8;
     }
 
     fn getVariableOffset(self: *@This(), name: []const u8) ?i64 {
@@ -72,27 +77,22 @@ pub fn codegen_init(program: *Program, writer: anytype) !void {
         \\ret
         \\
         \\_main:
-        \\
     );
 
     try writer.writeAll("    stp x29, x30, [sp, #-16]!\n");
     try writer.writeAll("    mov x29, sp\n");
 
     // First pass: count variables
-    var stack_size: i64 = 0;
     for (program.statements.items) |stmt| {
         if (stmt.type == .SayDeclaration) {
-            try symbol_table.addVariable(stmt.value.str, stack_size);
-            stack_size += 8;
+            try symbol_table.addVariable(stmt.value.str);
         }
     }
 
     // Align stack size to 16 bytes
-    stack_size = (stack_size + 15) & -16;
-
-    // Allocate stack space
-    if (stack_size > 0) {
-        try writer.print("    sub sp, sp, #{}\n", .{stack_size});
+    const stack_size = (symbol_table.current_offset + 15) & -16;
+    if (stack_size > 16) {
+        try writer.print("    sub sp, sp, #{d}\n", .{stack_size});
     }
 
     // Second pass: generate code
@@ -101,8 +101,8 @@ pub fn codegen_init(program: *Program, writer: anytype) !void {
     }
 
     // Epilogue
-    if (stack_size > 0) {
-        try writer.print("    add sp, sp, #{}\n", .{stack_size});
+    if (stack_size > 16) {
+        try writer.print("    add sp, sp, #{d}\n", .{stack_size - 16});
     }
     try writer.writeAll("    ldp x29, x30, [sp], #16\n");
 
@@ -120,87 +120,64 @@ pub fn codegen_init(program: *Program, writer: anytype) !void {
 fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable) !void {
     switch (node.type) {
         .IntegerLiteral => try writer.print("    mov x0, #{}\n", .{node.value.integer}),
-        .NodeAdd => {
+        .NodeAdd, .NodeSub, .NodeMul, .NodeDiv, .NodeModulo => {
             if (node.left) |left| try codegen(left, writer, symbol_table);
-            try writer.writeAll("    mov x1, x0\n");
+            try writer.writeAll("    str x0, [sp, #-16]!\n"); // Push result to stack and maintain 16-byte alignment
             if (node.right) |right| try codegen(right, writer, symbol_table);
-            try writer.writeAll("    add x0, x1, x0\n");
-        },
-        .NodeSub => {
-            if (node.left) |left| try codegen(left, writer, symbol_table);
             try writer.writeAll("    mov x1, x0\n");
-            if (node.right) |right| try codegen(right, writer, symbol_table);
-            try writer.writeAll("    sub x0, x1, x0\n");
+            try writer.writeAll("    ldr x0, [sp], #16\n"); // Pop left operand from stack
+            switch (node.type) {
+                .NodeAdd => try writer.writeAll("    add x0, x0, x1\n"),
+                .NodeSub => try writer.writeAll("    sub x0, x0, x1\n"),
+                .NodeMul => try writer.writeAll("    mul x0, x0, x1\n"),
+                .NodeDiv => try writer.writeAll("    sdiv x0, x0, x1\n"),
+                .NodeModulo => {
+                    try writer.writeAll("    sdiv x2, x0, x1\n");
+                    try writer.writeAll("    msub x0, x2, x1, x0\n");
+                },
+                else => unreachable,
+            }
         },
-        .NodeMul => {
-            if (node.left) |left| try codegen(left, writer, symbol_table);
-            try writer.writeAll("    mov x1, x0\n");
-            if (node.right) |right| try codegen(right, writer, symbol_table);
-            try writer.writeAll("    mul x0, x1, x0\n");
-        },
-        .NodeDiv => {
-            if (node.left) |left| try codegen(left, writer, symbol_table);
-            try writer.writeAll("    mov x1, x0\n");
-            if (node.right) |right| try codegen(right, writer, symbol_table);
-            try writer.writeAll("    sdiv x0, x1, x0\n");
-        },
-        .NodeModulo => {
-            // step 1: parse left number
-            // mov x0 #{left}
-            // mov x2, x0
-            //
-            // step 2: parse right number
-            // mov x0, #{right}
-            //
-            // step 3: save the previous calc results
-            // mov x3, x1
-            //
-            // step 4: prepare and divide
-            // | udiv (quotient) = divident / divisor
-            // | x4 = x2 / x0
-            // udiv x4, x2, x0
-            //
-            // step 5: multiply the result by the divisor
-            // | mul x4, x4, x0
-            // | x4 = x4 * x0
-            //
-            // step 6: subtract the multiplication result from the divident
-            // | sub x2, x2, x4
-            // | x2 = x2 - x4
-            //
-            // step 7: move the result to x0, and return the previous calc to x1
-            // mov x0, x2
-            // mov x1, x3
-            if (node.left) |left| try codegen(left, writer, symbol_table);
-            try writer.writeAll("    mov x1, x0\n");
-            if (node.right) |right| try codegen(right, writer, symbol_table);
-            try writer.writeAll("    sdiv x2, x1, x0\n");
-            try writer.writeAll("    mul x2, x2, x0\n");
-            try writer.writeAll("    sub x0, x1, x2\n");
-        },
-        .SayDeclaration => {
+        .SayDeclaration, .Assignment => {
             const var_name = node.value.str;
-            const offset = symbol_table.getVariableOffset(var_name) orelse return error.UndefinedVariable;
-
             if (node.left) |left| try codegen(left, writer, symbol_table);
-            try writer.print("    str x0, [x29, #-{}]\n", .{offset + 16});
-        },
-        .Assignment => {
-            const var_name = node.value.str;
-            const offset = symbol_table.getVariableOffset(var_name) orelse return error.UndefinedVariable;
-
-            if (node.left) |left| try codegen(left, writer, symbol_table);
-            try writer.print("    str x0, [x29, #-{}]\n", .{offset + 16});
+            const offset = if (symbol_table.getVariableOffset(var_name)) |off| off else blk: {
+                try symbol_table.addVariable(var_name);
+                break :blk symbol_table.getVariableOffset(var_name).?;
+            };
+            try writer.print("    str x0, [x29, #-{}]\n", .{offset});
         },
         .Variable => {
             const var_name = node.value.str;
             const offset = symbol_table.getVariableOffset(var_name) orelse return error.UndefinedVariable;
-            try writer.print("    ldr x0, [x29, #-{}]\n", .{offset + 16});
+            try writer.print("    ldr x0, [x29, #-{}]\n", .{offset});
         },
         .CmdPrintInt => {
             if (node.left) |left| try codegen(left, writer, symbol_table);
             try writer.writeAll("    bl _printInt\n");
         },
+        .IfStatement => {
+            const condition = node.left orelse return error.MissingCondition;
+            const block = node.right orelse return error.MissingBlock;
+
+            const end_label = try std.fmt.allocPrint(symbol_table.allocator, ".L{d}", .{symbol_table.label_counter});
+            defer symbol_table.allocator.free(end_label);
+            symbol_table.label_counter += 1;
+
+            try codegen(condition, writer, symbol_table);
+            try writer.writeAll("    cmp x0, #0\n");
+            try writer.print("    beq {s}\n", .{end_label});
+
+            try codegen(block, writer, symbol_table);
+
+            try writer.print("{s}:\n", .{end_label});
+        },
+        .BlockStatement => {
+            for (node.value.nodes) |stmt| {
+                try codegen(stmt, writer, symbol_table);
+            }
+        },
+
         else => return error.UnsupportedNodeType,
     }
 }

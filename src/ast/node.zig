@@ -14,6 +14,10 @@ pub const ENode = enum {
     Variable,
     SayDeclaration,
     Assignment,
+
+    // If statment
+    IfStatement,
+    BlockStatement,
 };
 
 pub const Node = struct {
@@ -23,6 +27,7 @@ pub const Node = struct {
     value: union(enum) {
         integer: i64,
         str: []const u8,
+        nodes: []*Node,
     },
 
     pub fn create(allocator: *const std.mem.Allocator, node_type: ENode, left: ?*Node, right: ?*Node, value: anytype) !*Node {
@@ -35,6 +40,7 @@ pub const Node = struct {
                 i64 => .{ .integer = value },
                 []const u8 => .{ .str = value },
                 @TypeOf(null) => .{ .str = "null" },
+                []*Node => .{ .nodes = value },
                 else => @compileError("Unsupported value type: " ++ @typeName(@TypeOf(value))),
             },
         };
@@ -47,6 +53,15 @@ pub const Node = struct {
         }
         if (self.right) |right| {
             right.deinit(allocator);
+        }
+        switch (self.value) {
+            .nodes => |nodes| {
+                for (nodes) |node| {
+                    node.deinit(allocator);
+                }
+                allocator.free(nodes);
+            },
+            else => {},
         }
         allocator.destroy(self);
     }
@@ -62,6 +77,10 @@ pub const Node = struct {
         switch (self.value) {
             .integer => |int| std.debug.print(" = {d}\n", .{int}),
             .str => |str| std.debug.print(" = {s}\n", .{str}),
+            .nodes => |n| for (n) |node| {
+                std.debug.print("\n", .{});
+                try node.print(pad + 1, modif);
+            },
         }
 
         if (self.left) |left| {
