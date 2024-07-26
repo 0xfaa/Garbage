@@ -11,6 +11,7 @@ pub fn lexer(input: []const u8, allocator: *const std.mem.Allocator) !std.ArrayL
         switch (c) {
             '{' => try tokens.append(.{ .type = EToken.LBrace, .value = "{" }),
             '}' => try tokens.append(.{ .type = EToken.RBrace, .value = "}" }),
+            ':' => try tokens.append(.{ .type = EToken.Colon, .value = ":" }),
             // @printInt
             '@' => {
                 if (input.len >= i + 9 and std.mem.eql(u8, input[i .. i + 9], "@printInt")) {
@@ -34,6 +35,8 @@ pub fn lexer(input: []const u8, allocator: *const std.mem.Allocator) !std.ArrayL
                     try tokens.append(.{ .type = EToken.VariableDeclaration, .value = identifier });
                 } else if (std.mem.eql(u8, identifier, "if")) {
                     try tokens.append(.{ .type = EToken.If, .value = identifier });
+                } else if (std.mem.eql(u8, identifier, "while")) {
+                    try tokens.append(.{ .type = EToken.While, .value = identifier });
                 } else {
                     try tokens.append(.{ .type = EToken.SayIdentifier, .value = identifier });
                 }
@@ -44,7 +47,24 @@ pub fn lexer(input: []const u8, allocator: *const std.mem.Allocator) !std.ArrayL
             '-' => try tokens.append(.{ .type = EToken.Sub, .value = "-" }),
             '/' => try tokens.append(.{ .type = EToken.Div, .value = "/" }),
             '%' => try tokens.append(.{ .type = EToken.Modulo, .value = "%" }),
-            '=' => try tokens.append(.{ .type = EToken.Assignment, .value = "=" }),
+            '=' => {
+                if (i + 1 < input.len and input[i + 1] == '=') {
+                    try tokens.append(.{ .type = EToken.Equal, .value = "==" });
+                    i += 1;
+                } else {
+                    try tokens.append(.{ .type = EToken.Assignment, .value = "=" });
+                }
+            },
+            '<' => try tokens.append(.{ .type = EToken.Less, .value = "<" }),
+            '>' => try tokens.append(.{ .type = EToken.Greater, .value = ">" }),
+            '!' => {
+                if (i + 1 < input.len and input[i + 1] == '=') {
+                    try tokens.append(.{ .type = EToken.NotEqual, .value = "!=" });
+                    i += 1;
+                } else {
+                    return error.InvalidCharacter;
+                }
+            },
             '(' => try tokens.append(.{ .type = EToken.LParen, .value = "(" }),
             ')' => try tokens.append(.{ .type = EToken.RParen, .value = ")" }),
             '\n' => try tokens.append(.{ .type = EToken.EOS, .value = "\\n" }),

@@ -17,11 +17,11 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
             if (self.tokens[self.i.*].type == .Integer) {
                 const value = try std.fmt.parseInt(i64, self.tokens[self.i.*].value, 10);
                 self.i.* += 1;
-                return Node.create(self.allocator, .IntegerLiteral, null, null, value);
+                return Node.create(self.allocator, .IntegerLiteral, null, null, null, value);
             } else if (self.tokens[self.i.*].type == .SayIdentifier) {
                 const value = self.tokens[self.i.*].value;
                 self.i.* += 1;
-                return Node.create(self.allocator, .Variable, null, null, value);
+                return Node.create(self.allocator, .Variable, null, null, null, value);
             } else if (self.tokens[self.i.*].type == .LParen) {
                 self.i.* += 1;
                 const expression = try self.parseExpression();
@@ -51,7 +51,7 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
                     else => unreachable,
                 };
 
-                left = try Node.create(self.allocator, nodeType, left, right, nodeTokenValue);
+                left = try Node.create(self.allocator, nodeType, left, right, null, nodeTokenValue);
             }
 
             return left;
@@ -72,7 +72,32 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
                     .Mul => ENode.NodeMul,
                     .Div => ENode.NodeDiv,
                     else => ENode.NodeModulo,
-                }, left, right, nodeTokenValue);
+                }, left, right, null, nodeTokenValue);
+            }
+
+            return left;
+        }
+
+        fn parseComparisonExpression(self: *@This()) !*Node {
+            var left = try self.parseAdditiveExpression();
+
+            while (self.i.* < self.tokens.len) {
+                const tokenType = self.tokens[self.i.*].type;
+                if (tokenType != .Equal and tokenType != .Less and tokenType != .Greater and tokenType != .NotEqual) break;
+
+                const nodeTokenValue = self.tokens[self.i.*].value;
+
+                self.i.* += 1;
+                const right = try self.parseAdditiveExpression();
+                const nodeType = switch (tokenType) {
+                    .Equal => ENode.NodeEqual,
+                    .Less => ENode.NodeLess,
+                    .Greater => ENode.NodeGreater,
+                    .NotEqual => ENode.NodeNotEqual,
+                    else => unreachable,
+                };
+
+                left = try Node.create(self.allocator, nodeType, left, right, null, nodeTokenValue);
             }
 
             return left;
@@ -84,21 +109,26 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
             }
 
             if (self.tokens[self.i.*].type == .CmdPrintInt) {
-                const printIntNode = try self.parseCmdPrintInt();
-                return printIntNode orelse return error.UnexpectedToken;
+                return try self.parseCmdPrintInt() orelse return error.UnexpectedToken;
             }
 
-            return self.parseAdditiveExpression() catch |err| switch (err) {
-                error.UnexpectedToken => return self.parsePrimary(),
-                else => return err,
-            };
+            var left = try self.parseComparisonExpression();
+
+            // Handle assignment
+            if (self.i.* < self.tokens.len and self.tokens[self.i.*].type == .Assignment) {
+                self.i.* += 1;
+                const right = try self.parseExpression();
+                left = try Node.create(self.allocator, .Assignment, left, right, null, null);
+            }
+
+            return left;
         }
 
         fn parseCmdPrintInt(self: *@This()) anyerror!?*Node {
             if (self.tokens[self.i.*].type == .CmdPrintInt) {
                 self.i.* += 1;
                 const expression = try self.parseExpression();
-                return Node.create(self.allocator, .CmdPrintInt, expression, null, self.tokens[self.i.* - 1].value);
+                return Node.create(self.allocator, .CmdPrintInt, expression, null, null, self.tokens[self.i.* - 1].value);
             }
             return null;
         }
@@ -124,7 +154,7 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
             const expression = try self.parseExpression();
             errdefer self.allocator.destroy(expression);
 
-            const varDeclNode = try Node.create(self.allocator, .SayDeclaration, expression, null, varName);
+            const varDeclNode = try Node.create(self.allocator, .SayDeclaration, expression, null, null, varName);
             return varDeclNode;
         }
 
@@ -138,7 +168,7 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
             self.i.* += 1;
 
             const expression = try self.parseExpression();
-            return Node.create(self.allocator, .Assignment, expression, null, varName);
+            return Node.create(self.allocator, .Assignment, expression, null, null, varName);
         }
 
         fn parseIfStatement(self: *@This()) anyerror!*Node {
@@ -150,7 +180,7 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
             const condition = try self.parseExpression();
             errdefer self.allocator.destroy(condition);
 
-            if (self.tokens[self.i.*].type != .LBrace) {
+            if (self.i.* >= self.tokens.len or self.tokens[self.i.*].type != .LBrace) {
                 return error.ExpectedLeftBrace;
             }
             self.i.* += 1;
@@ -158,38 +188,68 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
             const block = try self.parseBlockStatement();
             errdefer self.allocator.destroy(block);
 
-            const ifNode = try Node.create(self.allocator, .IfStatement, condition, block, null);
-            return ifNode;
+            return try Node.create(self.allocator, .IfStatement, condition, block, null, null);
         }
 
         fn parseBlockStatement(self: *@This()) anyerror!*Node {
             var statements = std.ArrayList(*Node).init(self.allocator.*);
-            defer {
-                for (statements.items) |node| {
-                    self.allocator.destroy(node);
-                }
+            errdefer {
+                for (statements.items) |stmt| stmt.deinit(self.allocator);
                 statements.deinit();
             }
 
-            while (self.tokens[self.i.*].type == .EOS) {
-                self.i.* += 1;
-            }
+            while (self.i.* < self.tokens.len and self.tokens[self.i.*].type != .RBrace) {
+                if (self.tokens[self.i.*].type == .EOS) {
+                    self.i.* += 1;
+                    continue;
+                }
 
-            while (self.tokens[self.i.*].type != .RBrace) {
                 const stmt = try self.parseStatement();
-                errdefer self.allocator.destroy(stmt);
                 try statements.append(stmt);
 
-                while (self.tokens[self.i.*].type == .EOS) {
+                if (self.i.* < self.tokens.len and self.tokens[self.i.*].type == .EOS) {
                     self.i.* += 1;
                 }
             }
 
+            if (self.i.* >= self.tokens.len or self.tokens[self.i.*].type != .RBrace) {
+                return error.ExpectedRightBrace;
+            }
             self.i.* += 1;
 
             const nodes = try statements.toOwnedSlice();
-            const blockNode = try Node.create(self.allocator, .BlockStatement, null, null, nodes);
+            const blockNode = try Node.create(self.allocator, .BlockStatement, null, null, null, nodes);
             return blockNode;
+        }
+
+        fn parseWhileStatement(self: *@This()) anyerror!*Node {
+            if (self.tokens[self.i.*].type != .While) {
+                return error.ExpectedWhileKeyword;
+            }
+            self.i.* += 1;
+
+            const condition = try self.parseExpression();
+            errdefer self.allocator.destroy(condition);
+
+            var loop_operation: ?*Node = null;
+            if (self.tokens[self.i.*].type == .Colon) {
+                self.i.* += 1;
+                loop_operation = try self.parseExpression();
+            }
+
+            if (self.tokens[self.i.*].type != .LBrace) {
+                return error.ExpectedLeftBrace;
+            }
+            self.i.* += 1;
+
+            if (self.tokens[self.i.*].type == .EOS) {
+                self.i.* += 1;
+            }
+
+            const block = try self.parseBlockStatement();
+            errdefer self.allocator.destroy(block);
+
+            return Node.create(self.allocator, .WhileStatement, condition, block, loop_operation, null);
         }
 
         fn parseStatement(self: *@This()) !*Node {
@@ -198,6 +258,7 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
                 .VariableDeclaration => stmt = try self.parseVariableDeclaration(),
                 .CmdPrintInt => stmt = try self.parseCmdPrintInt() orelse return error.UnexpectedToken,
                 .If => stmt = try self.parseIfStatement(),
+                .While => stmt = try self.parseWhileStatement(),
                 .SayIdentifier => {
                     if (self.i.* + 1 < self.tokens.len and self.tokens[self.i.* + 1].type == .Assignment) {
                         stmt = try self.parseAssignment();

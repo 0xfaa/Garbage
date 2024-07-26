@@ -120,12 +120,12 @@ pub fn codegen_init(program: *Program, writer: anytype) !void {
 fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable) !void {
     switch (node.type) {
         .IntegerLiteral => try writer.print("    mov x0, #{}\n", .{node.value.integer}),
-        .NodeAdd, .NodeSub, .NodeMul, .NodeDiv, .NodeModulo => {
+        .NodeAdd, .NodeSub, .NodeMul, .NodeDiv, .NodeModulo, .NodeEqual, .NodeLess, .NodeGreater, .NodeNotEqual => {
             if (node.left) |left| try codegen(left, writer, symbol_table);
-            try writer.writeAll("    str x0, [sp, #-16]!\n"); // Push result to stack and maintain 16-byte alignment
+            try writer.writeAll("    str x0, [sp, #-16]!\n");
             if (node.right) |right| try codegen(right, writer, symbol_table);
             try writer.writeAll("    mov x1, x0\n");
-            try writer.writeAll("    ldr x0, [sp], #16\n"); // Pop left operand from stack
+            try writer.writeAll("    ldr x0, [sp], #16\n");
             switch (node.type) {
                 .NodeAdd => try writer.writeAll("    add x0, x0, x1\n"),
                 .NodeSub => try writer.writeAll("    sub x0, x0, x1\n"),
@@ -135,10 +135,26 @@ fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable) !void {
                     try writer.writeAll("    sdiv x2, x0, x1\n");
                     try writer.writeAll("    msub x0, x2, x1, x0\n");
                 },
+                .NodeEqual => {
+                    try writer.writeAll("    cmp x0, x1\n");
+                    try writer.writeAll("    cset x0, eq\n");
+                },
+                .NodeLess => {
+                    try writer.writeAll("    cmp x0, x1\n");
+                    try writer.writeAll("    cset x0, lt\n");
+                },
+                .NodeGreater => {
+                    try writer.writeAll("    cmp x0, x1\n");
+                    try writer.writeAll("    cset x0, gt\n");
+                },
+                .NodeNotEqual => {
+                    try writer.writeAll("    cmp x0, x1\n");
+                    try writer.writeAll("    cset x0, ne\n");
+                },
                 else => unreachable,
             }
         },
-        .SayDeclaration, .Assignment => {
+        .SayDeclaration => {
             const var_name = node.value.str;
             if (node.left) |left| try codegen(left, writer, symbol_table);
             const offset = if (symbol_table.getVariableOffset(var_name)) |off| off else blk: {
@@ -177,7 +193,47 @@ fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable) !void {
                 try codegen(stmt, writer, symbol_table);
             }
         },
+        .WhileStatement => {
+            const condition = node.left orelse return error.MissingCondition;
+            const block = node.right orelse return error.MissingBlock;
+            const loop_operation = node.extra;
 
+            const loop_label = try std.fmt.allocPrint(symbol_table.allocator, ".L{d}_loop", .{symbol_table.label_counter});
+            defer symbol_table.allocator.free(loop_label);
+            const end_label = try std.fmt.allocPrint(symbol_table.allocator, ".L{d}_end", .{symbol_table.label_counter});
+            defer symbol_table.allocator.free(end_label);
+            symbol_table.label_counter += 1;
+
+            try writer.print("{s}:\n", .{loop_label});
+
+            // Generate code for the condition
+            try codegen(condition, writer, symbol_table);
+            try writer.writeAll("    cmp x0, #0\n");
+            try writer.print("    beq {s}\n", .{end_label});
+
+            // Generate code for the loop body
+            try codegen(block, writer, symbol_table);
+
+            // Generate code for the loop operation (if present)
+            if (loop_operation) |operation| {
+                std.debug.print("LOOP OPER:\n", .{});
+                try operation.print(0, "OPERATION");
+                try codegen(operation, writer, symbol_table);
+            }
+
+            try writer.print("    b {s}\n", .{loop_label});
+            try writer.print("{s}:\n", .{end_label});
+        },
+        .Assignment => {
+            const varName = node.left.?.value.str;
+
+            // Generate code for the right-hand side of the assignment
+            if (node.right) |right| try codegen(right, writer, symbol_table);
+
+            // Store the result in the variable
+            const offset = symbol_table.getVariableOffset(varName) orelse return error.UndefinedVariable;
+            try writer.print("    str x0, [x29, #-{}]\n", .{offset});
+        },
         else => return error.UnsupportedNodeType,
     }
 }

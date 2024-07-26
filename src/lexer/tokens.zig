@@ -31,6 +31,12 @@ pub const EToken = enum {
     LBrace,
     RBrace,
 
+    // Conditionals
+    Equal,
+    Less,
+    Greater,
+    NotEqual,
+
     // While loop
     While,
     Colon,

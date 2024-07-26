@@ -18,24 +18,35 @@ pub const ENode = enum {
     // If statment
     IfStatement,
     BlockStatement,
+
+    // Conditionals
+    NodeEqual,
+    NodeLess,
+    NodeGreater,
+    NodeNotEqual,
+
+    // While statement
+    WhileStatement,
 };
 
 pub const Node = struct {
     type: ENode,
     left: ?*Node,
     right: ?*Node,
+    extra: ?*Node, // Field for loop operation
     value: union(enum) {
         integer: i64,
         str: []const u8,
         nodes: []*Node,
     },
 
-    pub fn create(allocator: *const std.mem.Allocator, node_type: ENode, left: ?*Node, right: ?*Node, value: anytype) !*Node {
+    pub fn create(allocator: *const std.mem.Allocator, node_type: ENode, left: ?*Node, right: ?*Node, extra: ?*Node, value: anytype) !*Node {
         const node = try allocator.create(Node);
         node.* = .{
             .type = node_type,
             .left = left,
             .right = right,
+            .extra = extra,
             .value = switch (@TypeOf(value)) {
                 i64 => .{ .integer = value },
                 []const u8 => .{ .str = value },
@@ -53,6 +64,9 @@ pub const Node = struct {
         }
         if (self.right) |right| {
             right.deinit(allocator);
+        }
+        if (self.extra) |extra| {
+            extra.deinit(allocator);
         }
         switch (self.value) {
             .nodes => |nodes| {
@@ -88,6 +102,9 @@ pub const Node = struct {
         }
         if (self.right) |right| {
             try right.print(pad + 1, "r");
+        }
+        if (self.extra) |extra| {
+            try extra.print(pad + 1, "e");
         }
     }
 };
