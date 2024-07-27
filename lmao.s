@@ -44,90 +44,24 @@ _main:    stp x29, x30, [sp, #-16]!
     str x0, [x29, #-16]
 .L0_loop:
     ldr x0, [x29, #-16]
-    str x0, [sp, #-16]!
-    mov x0, #5
     mov x1, x0
-    ldr x0, [sp], #16
-    cmp x0, x1
+    str x1, [sp, #-16]!
+    mov x0, #100
+    mov x2, x0
+    ldr x1, [sp], #16
+    cmp x1, x2
     cset x0, lt
     cmp x0, #0
     beq .L0_end
     ldr x0, [x29, #-16]
-    str x0, [sp, #-16]!
-    mov x0, #2
-    mov x1, x0
-    ldr x0, [sp], #16
-    sdiv x2, x0, x1
-    msub x0, x2, x1, x0
-    str x0, [sp, #-16]!
-    mov x0, #0
-    mov x1, x0
-    ldr x0, [sp], #16
-    cmp x0, x1
-    cset x0, eq
-    cmp x0, #0
-    beq .L1
-    mov x0, #69
     bl _printInt
-.L1:
     ldr x0, [x29, #-16]
-    str x0, [sp, #-16]!
-    mov x0, #3
     mov x1, x0
-    ldr x0, [sp], #16
-    sdiv x2, x0, x1
-    msub x0, x2, x1, x0
-    str x0, [sp, #-16]!
-    mov x0, #0
-    mov x1, x0
-    ldr x0, [sp], #16
-    cmp x0, x1
-    cset x0, eq
-    cmp x0, #0
-    beq .L2
-    mov x0, #420
-    bl _printInt
-.L2:
-    ldr x0, [x29, #-16]
-    str x0, [sp, #-16]!
-    mov x0, #2
-    mov x1, x0
-    ldr x0, [sp], #16
-    sdiv x2, x0, x1
-    msub x0, x2, x1, x0
-    str x0, [sp, #-16]!
-    mov x0, #0
-    mov x1, x0
-    ldr x0, [sp], #16
-    cmp x0, x1
-    cset x0, ne
-    cmp x0, #0
-    beq .L3
-    ldr x0, [x29, #-16]
-    str x0, [sp, #-16]!
-    mov x0, #3
-    mov x1, x0
-    ldr x0, [sp], #16
-    sdiv x2, x0, x1
-    msub x0, x2, x1, x0
-    str x0, [sp, #-16]!
-    mov x0, #0
-    mov x1, x0
-    ldr x0, [sp], #16
-    cmp x0, x1
-    cset x0, ne
-    cmp x0, #0
-    beq .L4
-    ldr x0, [x29, #-16]
-    bl _printInt
-.L4:
-.L3:
-    ldr x0, [x29, #-16]
-    str x0, [sp, #-16]!
+    str x1, [sp, #-16]!
     mov x0, #1
-    mov x1, x0
-    ldr x0, [sp], #16
-    add x0, x0, x1
+    mov x2, x0
+    ldr x1, [sp], #16
+    add x0, x1, x2
     str x0, [x29, #-16]
     b .L0_loop
 .L0_end:

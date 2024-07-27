@@ -25,7 +25,16 @@ test "simple arithmetic" {
     try testParse("say x = 5 + 3 * 2");
 }
 
-test "while loop" {
+test "regular while loop" {
+    try testParse(
+        \\while x < 10 {
+        \\    @printInt x
+        \\    x = x + 1
+        \\}
+    );
+}
+
+test "zig while loop" {
     try testParse(
         \\while x < 10 : x = x + 1 {
         \\    @printInt x

@@ -12,7 +12,6 @@ pub fn lexer(input: []const u8, allocator: *const std.mem.Allocator) !std.ArrayL
             '{' => try tokens.append(.{ .type = EToken.LBrace, .value = "{" }),
             '}' => try tokens.append(.{ .type = EToken.RBrace, .value = "}" }),
             ':' => try tokens.append(.{ .type = EToken.Colon, .value = ":" }),
-            // @printInt
             '@' => {
                 if (input.len >= i + 9 and std.mem.eql(u8, input[i .. i + 9], "@printInt")) {
                     try tokens.append(.{ .type = EToken.CmdPrintInt, .value = "@printInt" });
@@ -37,6 +36,8 @@ pub fn lexer(input: []const u8, allocator: *const std.mem.Allocator) !std.ArrayL
                     try tokens.append(.{ .type = EToken.If, .value = identifier });
                 } else if (std.mem.eql(u8, identifier, "while")) {
                     try tokens.append(.{ .type = EToken.While, .value = identifier });
+                } else if (std.mem.eql(u8, identifier, "u64")) {
+                    try tokens.append(.{ .type = EToken.TypeDeclaration, .value = identifier });
                 } else {
                     try tokens.append(.{ .type = EToken.SayIdentifier, .value = identifier });
                 }

@@ -26,6 +26,9 @@ pub const EToken = enum {
     Assignment,
     VariableDeclaration,
 
+    // Type stuff
+    TypeDeclaration,
+
     // If syntax
     If,
     LBrace,

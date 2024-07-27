@@ -29,16 +29,22 @@ pub const ENode = enum {
     WhileStatement,
 };
 
+pub const NodeValue = union(enum) {
+    integer: i64,
+    str: []const u8,
+    nodes: []const *Node,
+    variable_decl: struct {
+        name: []const u8,
+        type: []const u8,
+    },
+};
+
 pub const Node = struct {
     type: ENode,
     left: ?*Node,
     right: ?*Node,
     extra: ?*Node, // Field for loop operation
-    value: union(enum) {
-        integer: i64,
-        str: []const u8,
-        nodes: []*Node,
-    },
+    value: NodeValue,
 
     pub fn create(allocator: *const std.mem.Allocator, node_type: ENode, left: ?*Node, right: ?*Node, extra: ?*Node, value: anytype) !*Node {
         const node = try allocator.create(Node);
@@ -50,10 +56,22 @@ pub const Node = struct {
             .value = switch (@TypeOf(value)) {
                 i64 => .{ .integer = value },
                 []const u8 => .{ .str = value },
-                @TypeOf(null) => .{ .str = "null" },
                 []*Node => .{ .nodes = value },
+                @TypeOf(null) => .{ .str = "null" },
                 else => @compileError("Unsupported value type: " ++ @typeName(@TypeOf(value))),
             },
+        };
+        return node;
+    }
+
+    pub fn createVariableDecl(allocator: *const std.mem.Allocator, node_type: ENode, left: ?*Node, right: ?*Node, extra: ?*Node, name: []const u8, var_type: []const u8) !*Node {
+        const node = try allocator.create(Node);
+        node.* = .{
+            .type = node_type,
+            .left = left,
+            .right = right,
+            .extra = extra,
+            .value = .{ .variable_decl = .{ .name = name, .type = var_type } },
         };
         return node;
     }
@@ -95,6 +113,7 @@ pub const Node = struct {
                 std.debug.print("\n", .{});
                 try node.print(pad + 1, modif);
             },
+            .variable_decl => |decl| std.debug.print(" = {s}: {s}\n", .{ decl.name, decl.type }),
         }
 
         if (self.left) |left| {

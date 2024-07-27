@@ -85,7 +85,7 @@ pub fn codegen_init(program: *Program, writer: anytype) !void {
     // First pass: count variables
     for (program.statements.items) |stmt| {
         if (stmt.type == .SayDeclaration) {
-            try symbol_table.addVariable(stmt.value.str);
+            try symbol_table.addVariable(stmt.value.variable_decl.name);
         }
     }
 
@@ -122,40 +122,43 @@ fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable) !void {
         .IntegerLiteral => try writer.print("    mov x0, #{}\n", .{node.value.integer}),
         .NodeAdd, .NodeSub, .NodeMul, .NodeDiv, .NodeModulo, .NodeEqual, .NodeLess, .NodeGreater, .NodeNotEqual => {
             if (node.left) |left| try codegen(left, writer, symbol_table);
-            try writer.writeAll("    str x0, [sp, #-16]!\n");
+            try writer.writeAll("    mov x1, x0\n"); // Save left operand in x1
+            try writer.writeAll("    str x1, [sp, #-16]!\n"); // Push left operand onto stack
             if (node.right) |right| try codegen(right, writer, symbol_table);
-            try writer.writeAll("    mov x1, x0\n");
-            try writer.writeAll("    ldr x0, [sp], #16\n");
+            // Now right operand is in x0
+            try writer.writeAll("    mov x2, x0\n"); // Move right operand to x2
+            try writer.writeAll("    ldr x1, [sp], #16\n"); // Pop left operand into x1
+
             switch (node.type) {
-                .NodeAdd => try writer.writeAll("    add x0, x0, x1\n"),
-                .NodeSub => try writer.writeAll("    sub x0, x0, x1\n"),
-                .NodeMul => try writer.writeAll("    mul x0, x0, x1\n"),
-                .NodeDiv => try writer.writeAll("    sdiv x0, x0, x1\n"),
+                .NodeAdd => try writer.writeAll("    add x0, x1, x2\n"),
+                .NodeSub => try writer.writeAll("    sub x0, x1, x2\n"),
+                .NodeMul => try writer.writeAll("    mul x0, x1, x2\n"),
+                .NodeDiv => try writer.writeAll("    sdiv x0, x1, x2\n"),
                 .NodeModulo => {
-                    try writer.writeAll("    sdiv x2, x0, x1\n");
-                    try writer.writeAll("    msub x0, x2, x1, x0\n");
+                    try writer.writeAll("    sdiv x3, x1, x2\n");
+                    try writer.writeAll("    msub x0, x3, x2, x1\n");
                 },
                 .NodeEqual => {
-                    try writer.writeAll("    cmp x0, x1\n");
+                    try writer.writeAll("    cmp x1, x2\n");
                     try writer.writeAll("    cset x0, eq\n");
                 },
                 .NodeLess => {
-                    try writer.writeAll("    cmp x0, x1\n");
+                    try writer.writeAll("    cmp x1, x2\n");
                     try writer.writeAll("    cset x0, lt\n");
                 },
                 .NodeGreater => {
-                    try writer.writeAll("    cmp x0, x1\n");
+                    try writer.writeAll("    cmp x1, x2\n");
                     try writer.writeAll("    cset x0, gt\n");
                 },
                 .NodeNotEqual => {
-                    try writer.writeAll("    cmp x0, x1\n");
+                    try writer.writeAll("    cmp x1, x2\n");
                     try writer.writeAll("    cset x0, ne\n");
                 },
                 else => unreachable,
             }
         },
         .SayDeclaration => {
-            const var_name = node.value.str;
+            const var_name = node.value.variable_decl.name;
             if (node.left) |left| try codegen(left, writer, symbol_table);
             const offset = if (symbol_table.getVariableOffset(var_name)) |off| off else blk: {
                 try symbol_table.addVariable(var_name);
@@ -226,12 +229,14 @@ fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable) !void {
         },
         .Assignment => {
             const varName = node.left.?.value.str;
+            const offset = symbol_table.getVariableOffset(varName) orelse return error.UndefinedVariable;
 
             // Generate code for the right-hand side of the assignment
-            if (node.right) |right| try codegen(right, writer, symbol_table);
+            if (node.right) |right| {
+                try codegen(right, writer, symbol_table);
+            }
 
             // Store the result in the variable
-            const offset = symbol_table.getVariableOffset(varName) orelse return error.UndefinedVariable;
             try writer.print("    str x0, [x29, #-{}]\n", .{offset});
         },
         else => return error.UnsupportedNodeType,
