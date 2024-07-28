@@ -1,4 +1,5 @@
 const std = @import("std");
+const VarType = @import("../codegen/codegen.zig").VarType;
 
 pub const ENode = enum {
     IntegerLiteral,
@@ -7,13 +8,22 @@ pub const ENode = enum {
     NodeSub,
     NodeDiv,
     NodeModulo,
-    CmdPrintInt,
     Statement,
+
+    // commands
+    CmdPrintInt,
+    CmdPrintChar,
 
     // Variable stuff
     Variable,
     SayDeclaration,
     Assignment,
+
+    // Types // Pointers
+    Type,
+    PointerType,
+    AddressOf,
+    Dereference,
 
     // If statment
     IfStatement,
@@ -66,32 +76,32 @@ pub const Node = struct {
 
     pub fn createVariableDecl(allocator: *const std.mem.Allocator, node_type: ENode, left: ?*Node, right: ?*Node, extra: ?*Node, name: []const u8, var_type: []const u8) !*Node {
         const node = try allocator.create(Node);
+        const name_copy = try allocator.dupe(u8, name);
+        const type_copy = try allocator.dupe(u8, var_type);
         node.* = .{
             .type = node_type,
             .left = left,
             .right = right,
             .extra = extra,
-            .value = .{ .variable_decl = .{ .name = name, .type = var_type } },
+            .value = .{ .variable_decl = .{ .name = name_copy, .type = type_copy } },
         };
         return node;
     }
 
     pub fn deinit(self: *Node, allocator: *const std.mem.Allocator) void {
-        if (self.left) |left| {
-            left.deinit(allocator);
-        }
-        if (self.right) |right| {
-            right.deinit(allocator);
-        }
-        if (self.extra) |extra| {
-            extra.deinit(allocator);
-        }
+        if (self.left) |left| left.deinit(allocator);
+        if (self.right) |right| right.deinit(allocator);
+        if (self.extra) |extra| extra.deinit(allocator);
         switch (self.value) {
             .nodes => |nodes| {
                 for (nodes) |node| {
                     node.deinit(allocator);
                 }
                 allocator.free(nodes);
+            },
+            .variable_decl => |var_decl| {
+                allocator.free(var_decl.name);
+                allocator.free(var_decl.type);
             },
             else => {},
         }

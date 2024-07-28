@@ -12,10 +12,14 @@ pub fn lexer(input: []const u8, allocator: *const std.mem.Allocator) !std.ArrayL
             '{' => try tokens.append(.{ .type = EToken.LBrace, .value = "{" }),
             '}' => try tokens.append(.{ .type = EToken.RBrace, .value = "}" }),
             ':' => try tokens.append(.{ .type = EToken.Colon, .value = ":" }),
+            '&' => try tokens.append(.{ .type = EToken.Ampersand, .value = "&" }),
             '@' => {
                 if (input.len >= i + 9 and std.mem.eql(u8, input[i .. i + 9], "@printInt")) {
                     try tokens.append(.{ .type = EToken.CmdPrintInt, .value = "@printInt" });
-                    i += 8; // We'll increment by 1 more in the loop
+                    i += 8;
+                } else if (input.len >= i + 10 and std.mem.eql(u8, input[i .. i + 10], "@printChar")) {
+                    try tokens.append(.{ .type = EToken.CmdPrintChar, .value = "@printChar" });
+                    i += 9;
                 } else {
                     return error.InvalidCharacter;
                 }
@@ -36,7 +40,7 @@ pub fn lexer(input: []const u8, allocator: *const std.mem.Allocator) !std.ArrayL
                     try tokens.append(.{ .type = EToken.If, .value = identifier });
                 } else if (std.mem.eql(u8, identifier, "while")) {
                     try tokens.append(.{ .type = EToken.While, .value = identifier });
-                } else if (std.mem.eql(u8, identifier, "u64")) {
+                } else if (std.mem.eql(u8, identifier, "u64") or std.mem.eql(u8, identifier, "u8")) {
                     try tokens.append(.{ .type = EToken.TypeDeclaration, .value = identifier });
                 } else {
                     try tokens.append(.{ .type = EToken.SayIdentifier, .value = identifier });
@@ -64,6 +68,14 @@ pub fn lexer(input: []const u8, allocator: *const std.mem.Allocator) !std.ArrayL
                     i += 1;
                 } else {
                     return error.InvalidCharacter;
+                }
+            },
+            '.' => {
+                if (i + 1 < input.len and input[i + 1] == '*') {
+                    try tokens.append(.{ .type = .Dereference, .value = ".*" });
+                    i += 1;
+                } else {
+                    return error.UnexpectedDot;
                 }
             },
             '(' => try tokens.append(.{ .type = EToken.LParen, .value = "(" }),

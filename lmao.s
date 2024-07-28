@@ -40,31 +40,19 @@ ret
 _main:    stp x29, x30, [sp, #-16]!
     mov x29, sp
     sub sp, sp, #32
-    mov x0, #0
-    str x0, [x29, #-16]
-.L0_loop:
-    ldr x0, [x29, #-16]
+    mov w0, #0
+    strb w0, [x29, #-16]
+    add x0, x29, #-16
+    str x0, [x29, #-24]
+    ldr x0, [x29, #-24]
     mov x1, x0
-    str x1, [sp, #-16]!
-    mov x0, #100
-    mov x2, x0
-    ldr x1, [sp], #16
-    cmp x1, x2
-    cset x0, lt
-    cmp x0, #0
-    beq .L0_end
-    ldr x0, [x29, #-16]
+    mov w0, #5
+    strb w0, [x1]
+    ldrb w0, [x29, #-16]
     bl _printInt
-    ldr x0, [x29, #-16]
-    mov x1, x0
-    str x1, [sp, #-16]!
-    mov x0, #1
-    mov x2, x0
-    ldr x1, [sp], #16
-    add x0, x1, x2
-    str x0, [x29, #-16]
-    b .L0_loop
-.L0_end:
+    ldr x0, [x29, #-24]
+    ldrb w0, [x0]
+    bl _printInt
     add sp, sp, #16
     ldp x29, x30, [sp], #16
 

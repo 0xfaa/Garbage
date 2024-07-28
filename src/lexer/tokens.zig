@@ -14,6 +14,7 @@ pub const EToken = enum {
 
     // Builtin features
     CmdPrintInt,
+    CmdPrintChar,
 
     // End of statement
     EOS,
@@ -43,5 +44,9 @@ pub const EToken = enum {
     // While loop
     While,
     Colon,
+
+    // Pointers
+    Ampersand,
+    Dereference,
 };
 pub const TToken = struct { type: EToken, value: []const u8 };

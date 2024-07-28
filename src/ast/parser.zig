@@ -13,25 +13,53 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
         i: *usize,
         allocator: *const std.mem.Allocator,
 
-        fn parsePrimary(self: *@This()) !*Node {
-            if (self.tokens[self.i.*].type == .Integer) {
-                const value = try std.fmt.parseInt(i64, self.tokens[self.i.*].value, 10);
-                self.i.* += 1;
-                return Node.create(self.allocator, .IntegerLiteral, null, null, null, value);
-            } else if (self.tokens[self.i.*].type == .SayIdentifier) {
-                const value = self.tokens[self.i.*].value;
-                self.i.* += 1;
-                return Node.create(self.allocator, .Variable, null, null, null, value);
-            } else if (self.tokens[self.i.*].type == .LParen) {
-                self.i.* += 1;
-                const expression = try self.parseExpression();
-                if (self.tokens[self.i.*].type != .RParen) {
-                    return error.ExpectedRightParen;
-                }
-                self.i.* += 1;
-                return expression;
+        fn parseBasicPrimary(self: *@This()) !*Node {
+            switch (self.tokens[self.i.*].type) {
+                .Integer => {
+                    const value = try std.fmt.parseInt(i64, self.tokens[self.i.*].value, 10);
+                    self.i.* += 1;
+                    return Node.create(self.allocator, .IntegerLiteral, null, null, null, value);
+                },
+                .SayIdentifier => {
+                    const value = self.tokens[self.i.*].value;
+                    self.i.* += 1;
+                    return Node.create(self.allocator, .Variable, null, null, null, value);
+                },
+                .LParen => {
+                    self.i.* += 1;
+                    const expression = try self.parseExpression();
+                    if (self.tokens[self.i.*].type != .RParen) {
+                        return error.ExpectedRightParen;
+                    }
+                    self.i.* += 1;
+                    return expression;
+                },
+                .Ampersand => {
+                    self.i.* += 1;
+                    const expr = try self.parseBasicPrimary();
+                    return Node.create(self.allocator, .AddressOf, expr, null, null, null);
+                },
+                else => return error.UnexpectedToken,
             }
-            return error.UnexpectedToken;
+        }
+
+        fn parsePostfixOperations(self: *@This(), expr: *Node) !*Node {
+            var result = expr;
+            while (self.i.* < self.tokens.len) {
+                switch (self.tokens[self.i.*].type) {
+                    .Dereference => {
+                        self.i.* += 1;
+                        result = try Node.create(self.allocator, .Dereference, result, null, null, null);
+                    },
+                    else => break,
+                }
+            }
+            return result;
+        }
+
+        fn parsePrimary(self: *@This()) !*Node {
+            const expr = try self.parseBasicPrimary();
+            return try self.parsePostfixOperations(expr);
         }
 
         fn parseAdditiveExpression(self: *@This()) !*Node {
@@ -112,14 +140,25 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
                 return try self.parseCmdPrintInt() orelse return error.UnexpectedToken;
             }
 
-            if (self.tokens[self.i.*].type == .SayIdentifier and
-                self.i.* + 1 < self.tokens.len and
-                self.tokens[self.i.* + 1].type == .Assignment)
-            {
-                return try self.parseAssignment();
+            var expr = try self.parseComparisonExpression();
+            expr = try self.parsePostfixOperations(expr);
+
+            if (self.i.* < self.tokens.len and self.tokens[self.i.*].type == .Assignment) {
+                self.i.* += 1;
+                const right = try self.parseExpression();
+                expr = try Node.create(self.allocator, .Assignment, expr, right, null, null);
             }
 
-            return try self.parseComparisonExpression();
+            return expr;
+        }
+
+        fn parseCmdPrintChar(self: *@This()) anyerror!?*Node {
+            if (self.tokens[self.i.*].type == .CmdPrintChar) {
+                self.i.* += 1;
+                const expression = try self.parseExpression();
+                return Node.create(self.allocator, .CmdPrintChar, expression, null, null, self.tokens[self.i.* - 1].value);
+            }
+            return null;
         }
 
         fn parseCmdPrintInt(self: *@This()) anyerror!?*Node {
@@ -129,6 +168,42 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
                 return Node.create(self.allocator, .CmdPrintInt, expression, null, null, self.tokens[self.i.* - 1].value);
             }
             return null;
+        }
+
+        fn parseType(self: *@This()) !*Node {
+            if (self.tokens[self.i.*].type == .Mul) {
+                self.i.* += 1;
+                const baseType = try self.parseType();
+                return Node.create(self.allocator, .PointerType, baseType, null, null, null);
+            } else if (self.tokens[self.i.*].type == .TypeDeclaration) {
+                const typeValue = self.tokens[self.i.*].value;
+                self.i.* += 1;
+                return Node.create(self.allocator, .Type, null, null, null, typeValue);
+            }
+            return error.ExpectedType;
+        }
+
+        fn typeNodeToString(self: *@This(), typeNode: *Node) ![]const u8 {
+            std.debug.print("type node to str:\n", .{});
+            try typeNode.print(0, "-");
+            var builder = std.ArrayList(u8).init(self.allocator.*);
+            defer builder.deinit();
+
+            switch (typeNode.type) {
+                .Type => {
+                    try builder.appendSlice(typeNode.value.str);
+                },
+                .PointerType => {
+                    try builder.appendSlice("*");
+                    if (typeNode.left) |node| {
+                        try builder.appendSlice(node.value.str);
+                    } else {
+                        return error.InvalidTypeNode;
+                    }
+                },
+                else => return error.InvalidTypeNode,
+            }
+            return builder.toOwnedSlice();
         }
 
         fn parseVariableDeclaration(self: *@This()) !*Node {
@@ -144,17 +219,16 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
             const varName = self.tokens[self.i.*].value;
             self.i.* += 1;
 
-            var varType: []const u8 = undefined;
-            if (self.tokens[self.i.*].type == .Colon) {
-                self.i.* += 1;
-                if (self.tokens[self.i.*].type != .TypeDeclaration) {
-                    return error.ExpectedType;
-                }
-                varType = self.tokens[self.i.*].value;
-                self.i.* += 1;
-            } else {
-                return error.ExpectedTypeDeclaration;
+            if (self.tokens[self.i.*].type != .Colon) {
+                return error.ExpectedColon;
             }
+            self.i.* += 1;
+
+            const typeNode = try self.parseType();
+            defer typeNode.deinit(self.allocator); // Ensure typeNode is freed
+
+            const typeStr = try self.typeNodeToString(typeNode);
+            defer self.allocator.free(typeStr);
 
             if (self.tokens[self.i.*].type != .Assignment) {
                 return error.ExpectedAssignment;
@@ -164,8 +238,7 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
             const expression = try self.parseExpression();
             errdefer self.allocator.destroy(expression);
 
-            const varDeclNode = try Node.createVariableDecl(self.allocator, .SayDeclaration, expression, null, null, varName, varType);
-            return varDeclNode;
+            return Node.createVariableDecl(self.allocator, .SayDeclaration, expression, null, null, varName, typeStr);
         }
 
         fn parseAssignment(self: *@This()) !*Node {
@@ -263,23 +336,14 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
         }
 
         fn parseStatement(self: *@This()) !*Node {
-            var stmt: *Node = undefined;
             switch (self.tokens[self.i.*].type) {
-                .VariableDeclaration => stmt = try self.parseVariableDeclaration(),
-                .CmdPrintInt => stmt = try self.parseCmdPrintInt() orelse return error.UnexpectedToken,
-                .If => stmt = try self.parseIfStatement(),
-                .While => stmt = try self.parseWhileStatement(),
-                .SayIdentifier => {
-                    if (self.i.* + 1 < self.tokens.len and self.tokens[self.i.* + 1].type == .Assignment) {
-                        stmt = try self.parseAssignment();
-                    } else {
-                        stmt = try self.parseExpression();
-                    }
-                },
-                else => stmt = try self.parseExpression(),
+                .VariableDeclaration => return try self.parseVariableDeclaration(),
+                .CmdPrintInt => return (try self.parseCmdPrintInt()) orelse return error.UnexpectedToken,
+                .CmdPrintChar => return (try self.parseCmdPrintChar()) orelse return error.UnexpectedToken,
+                .If => return try self.parseIfStatement(),
+                .While => return try self.parseWhileStatement(),
+                else => return try self.parseExpression(),
             }
-
-            return stmt;
         }
 
         fn parseProgram(self: *@This()) !*Program {
