@@ -3,25 +3,31 @@ const Program = @import("../ast/program.zig").Program;
 const Node = @import("../ast/node.zig").Node;
 
 const VarInfo = struct {
-    offset: i64,
+    offset: usize,
     type: *VarType,
 };
 
 pub const VarType = struct {
-    type_enum: enum { U8, U64, Pointer },
+    type_enum: enum { U8, U64, Pointer, Array },
     inner: ?*VarType,
+    array_size: ?usize,
 
     fn fromString(allocator: std.mem.Allocator, str: []const u8) !*VarType {
         const result = try allocator.create(VarType);
         errdefer allocator.destroy(result);
 
-        if (std.mem.eql(u8, str, "u8")) {
-            result.* = .{ .type_enum = .U8, .inner = null };
+        if (std.mem.startsWith(u8, str, "[")) {
+            const closing_bracket = std.mem.indexOf(u8, str, "]") orelse return error.InvalidArrayType;
+            const arr_size = try std.fmt.parseInt(usize, str[1..closing_bracket], 10);
+            const inner_type = try VarType.fromString(allocator, str[closing_bracket + 1 ..]);
+            result.* = .{ .type_enum = .Array, .inner = inner_type, .array_size = arr_size };
+        } else if (std.mem.eql(u8, str, "u8")) {
+            result.* = .{ .type_enum = .U8, .inner = null, .array_size = null };
         } else if (std.mem.eql(u8, str, "u64")) {
-            result.* = .{ .type_enum = .U64, .inner = null };
+            result.* = .{ .type_enum = .U64, .inner = null, .array_size = null };
         } else if (std.mem.startsWith(u8, str, "*")) {
             const inner_type = try VarType.fromString(allocator, str[1..]);
-            result.* = .{ .type_enum = .Pointer, .inner = inner_type };
+            result.* = .{ .type_enum = .Pointer, .inner = inner_type, .array_size = null };
         } else {
             allocator.destroy(result);
             return error.UnsupportedType;
@@ -29,10 +35,11 @@ pub const VarType = struct {
         return result;
     }
 
-    pub fn size(self: VarType) u8 {
+    pub fn size(self: VarType) usize {
         return switch (self.type_enum) {
             .U8 => 1,
             .U64, .Pointer => 8,
+            .Array => self.array_size.? * self.inner.?.size(),
         };
     }
 
@@ -46,14 +53,14 @@ pub const VarType = struct {
 
 const SymbolTable = struct {
     variables: std.StringHashMap(VarInfo),
-    current_offset: i64,
+    current_offset: usize,
     allocator: std.mem.Allocator,
     label_counter: usize,
 
     fn init(allocator: std.mem.Allocator) SymbolTable {
         return .{
             .variables = std.StringHashMap(VarInfo).init(allocator),
-            .current_offset = 16, // Start after saved fp and lr
+            .current_offset = 32, // Start after saved fp and lr
             .allocator = allocator,
             .label_counter = 0,
         };
@@ -65,7 +72,7 @@ const SymbolTable = struct {
 
         // Align the offset for larger types
         if (size > 1) {
-            self.current_offset = (self.current_offset + 7) & ~@as(i64, 7);
+            self.current_offset = (self.current_offset + 7) & ~@as(usize, 7);
         }
 
         std.debug.print("Adding a variable: {s} with size: {}\n", .{ name, size });
@@ -77,7 +84,7 @@ const SymbolTable = struct {
         std.debug.print("New offset: {}\n", .{self.current_offset});
     }
 
-    fn getVariableOffset(self: *@This(), name: []const u8) ?i64 {
+    fn getVariableOffset(self: *@This(), name: []const u8) ?usize {
         return if (self.variables.get(name)) |entry| entry.offset else null;
     }
 
@@ -154,14 +161,14 @@ pub fn codegen_init(program: *Program, writer: anytype) !void {
     }
 
     // Align stack size to 16 bytes
-    const stack_size = (symbol_table.current_offset + 15) & -16;
+    const stack_size = (symbol_table.current_offset + 15) & ~@as(usize, 15);
     if (stack_size > 16) {
-        try writer.print("    sub sp, sp, #{d}\n", .{stack_size});
+        try writer.print("    sub sp, sp, #{}\n", .{stack_size});
     }
 
     // Second pass: generate code
     for (program.statements.items) |stmt| {
-        try codegen(stmt, writer, &symbol_table);
+        try codegen(stmt, writer, &symbol_table, null);
     }
 
     // Epilogue
@@ -181,7 +188,7 @@ pub fn codegen_init(program: *Program, writer: anytype) !void {
     );
 }
 
-fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable) !void {
+fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable, parent_var_name: ?[]const u8) !void {
     switch (node.type) {
         .IntegerLiteral => {
             if (node.value.integer > 255) {
@@ -191,7 +198,7 @@ fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable) !void {
             }
         },
         .NodeAdd, .NodeSub, .NodeMul, .NodeDiv, .NodeModulo => {
-            if (node.left) |left| try codegen(left, writer, symbol_table);
+            if (node.left) |left| try codegen(left, writer, symbol_table, null);
 
             if (node.left.?.type == .Variable) {
                 const var_type = symbol_table.getVariableType(node.left.?.value.str) orelse return error.UndefinedVariable;
@@ -205,7 +212,7 @@ fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable) !void {
                 try writer.writeAll("    mov x1, x0\n");
             }
             try writer.writeAll("    str x1, [sp, #-16]!\n"); // Push left operand onto stack
-            if (node.right) |right| try codegen(right, writer, symbol_table);
+            if (node.right) |right| try codegen(right, writer, symbol_table, null);
             // Now right operand is in x0
             try writer.writeAll("    mov x2, x0\n"); // Move right operand to x2
             try writer.writeAll("    ldr x1, [sp], #16\n"); // Pop left operand into x1
@@ -245,7 +252,7 @@ fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable) !void {
                 null;
 
             // Generate code for left operand
-            if (node.left) |left| try codegen(left, writer, symbol_table);
+            if (node.left) |left| try codegen(left, writer, symbol_table, null);
 
             // If left operand is u8, keep it in w register
             if (left_type) |lt| {
@@ -259,7 +266,7 @@ fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable) !void {
             }
 
             // Generate code for right operand
-            if (node.right) |right| try codegen(right, writer, symbol_table);
+            if (node.right) |right| try codegen(right, writer, symbol_table, null);
 
             // Perform comparison based on type
             if (left_type) |lt| {
@@ -284,10 +291,7 @@ fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable) !void {
         .SayDeclaration => {
             const var_name = node.value.variable_decl.name;
             const var_type = node.value.variable_decl.type;
-
-            if (node.left) |left| try codegen(left, writer, symbol_table);
             const type_enum = try VarType.fromString(symbol_table.allocator, var_type);
-
             defer {
                 type_enum.deinit(symbol_table.allocator);
                 symbol_table.allocator.destroy(type_enum);
@@ -297,11 +301,19 @@ fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable) !void {
                 break :blk symbol_table.getVariableOffset(var_name).?;
             };
 
-            std.debug.print("Var name: {s}: {s} | \n{}\nOffset: {}\n\n", .{ var_name, var_type, type_enum, offset });
-
-            switch (type_enum.type_enum) {
-                .U8 => try writer.print("    strb w0, [x29, #-{}]\n", .{offset}),
-                .U64, .Pointer => try writer.print("    str x0, [x29, #-{}]\n", .{offset}),
+            if (type_enum.type_enum == .Array) {
+                if (node.left) |left| {
+                    if (left.type == .ArrayInitialization) {
+                        try codegen(left, writer, symbol_table, var_name);
+                    }
+                }
+            } else if (node.left) |left| {
+                try codegen(left, writer, symbol_table, null);
+                switch (type_enum.type_enum) {
+                    .U8 => try writer.print("    strb w0, [x29, #-{}]\n", .{offset}),
+                    .U64, .Pointer => try writer.print("    str x0, [x29, #-{}]\n", .{offset}),
+                    .Array => unreachable, // Handled above
+                }
             }
         },
         .Variable => {
@@ -312,19 +324,53 @@ fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable) !void {
                 .U8 => try writer.print("    ldrb w0, [x29, #-{}]\n", .{offset}),
                 .U64 => try writer.print("    ldr x0, [x29, #-{}]\n", .{offset}),
                 .Pointer => try writer.print("    ldr x0, [x29, #-{}]\n", .{offset}),
+                .Array => {
+                    // For arrays, load the address of the first element
+                    try writer.print("    add x0, x29, #-{}\n", .{offset});
+                },
             }
         },
         .CmdPrintInt => {
-            if (node.left) |left| try codegen(left, writer, symbol_table);
+            if (node.left) |left| try codegen(left, writer, symbol_table, null);
             try writer.writeAll("    bl _printInt\n");
         },
         .CmdPrintChar => {
-            if (node.left) |left| try codegen(left, writer, symbol_table);
+            if (node.left) |left| try codegen(left, writer, symbol_table, null);
             try writer.writeAll(
                 \\    mov x1, sp
                 \\    strb w0, [x1]
                 \\    mov x0, #1     ; stdout file descriptor
                 \\    mov x2, #1     ; length of 1 character
+                \\    mov x16, #4    ; write syscall number
+                \\    svc 0
+                \\
+            );
+        },
+        .CmdPrintBuf => {
+            // Get array information
+            const var_name = node.left.?.value.str;
+            const var_type = symbol_table.getVariableType(var_name) orelse return error.UndefinedVariable;
+            const array_size = var_type.array_size orelse return error.MissingArraySize;
+            const element_size = var_type.inner.?.size();
+            const total_size = array_size * element_size;
+            const offset = symbol_table.getVariableOffset(var_name) orelse return error.UndefinedVariable;
+
+            // Calculate the correct base address
+            try writer.print("    add x0, x29, #-{}\n", .{offset + total_size});
+            try writer.writeAll("    mov x1, x0\n"); // Move pointer to x1
+
+            // Generate code for the count argument
+            try codegen(node.right.?, writer, symbol_table, null);
+            try writer.writeAll("    mov x2, x0\n"); // Move count to x2
+
+            // Ensure we don't print more than the array size
+            try writer.print("    mov x3, #{}\n", .{array_size});
+            try writer.writeAll("    cmp x2, x3\n");
+            try writer.writeAll("    csel x2, x2, x3, ls\n"); // x2 = min(x2, x3)
+
+            // System call to write
+            try writer.writeAll(
+                \\    mov x0, #1     ; stdout file descriptor
                 \\    mov x16, #4    ; write syscall number
                 \\    svc 0
                 \\
@@ -338,19 +384,19 @@ fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable) !void {
             defer symbol_table.allocator.free(end_label);
             symbol_table.label_counter += 1;
 
-            try codegen(condition, writer, symbol_table);
+            try codegen(condition, writer, symbol_table, null);
 
             // Branch based on condition result
             try writer.writeAll("    cbz w0, ");
             try writer.print("{s}\n", .{end_label});
 
-            try codegen(block, writer, symbol_table);
+            try codegen(block, writer, symbol_table, null);
 
             try writer.print("{s}:\n", .{end_label});
         },
         .BlockStatement => {
             for (node.value.nodes) |stmt| {
-                try codegen(stmt, writer, symbol_table);
+                try codegen(stmt, writer, symbol_table, null);
             }
         },
         .WhileStatement => {
@@ -367,18 +413,18 @@ fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable) !void {
             try writer.print("{s}:\n", .{loop_label});
 
             // Generate code for the condition
-            try codegen(condition, writer, symbol_table);
+            try codegen(condition, writer, symbol_table, null);
             try writer.writeAll("    cmp x0, #0\n");
             try writer.print("    beq {s}\n", .{end_label});
 
             // Generate code for the loop body
-            try codegen(block, writer, symbol_table);
+            try codegen(block, writer, symbol_table, null);
 
             // Generate code for the loop operation (if present)
             if (loop_operation) |operation| {
                 std.debug.print("LOOP OPER:\n", .{});
                 try operation.print(0, "OPERATION");
-                try codegen(operation, writer, symbol_table);
+                try codegen(operation, writer, symbol_table, null);
             }
 
             try writer.print("    b {s}\n", .{loop_label});
@@ -387,12 +433,33 @@ fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable) !void {
         .Assignment => {
             if (node.left.?.type == .Dereference) {
                 // Generate code to put the address into x1
-                try codegen(node.left.?.left.?, writer, symbol_table);
+                try codegen(node.left.?.left.?, writer, symbol_table, null);
                 try writer.writeAll("    mov x1, x0\n");
 
                 // Generate code to put the value into x0
-                try codegen(node.right.?, writer, symbol_table);
+                try codegen(node.right.?, writer, symbol_table, null);
 
+                try writer.writeAll("    strb w0, [x1]\n");
+            } else if (node.left.?.type == .ArrayIndex) {
+                const array_node = node.left.?.left.?;
+                const index_node = node.left.?.right.?;
+
+                const array_name = array_node.value.str;
+                const var_type = symbol_table.getVariableType(array_name) orelse return error.UndefinedVariable;
+                const offset = symbol_table.getVariableOffset(array_name) orelse return error.UndefinedVariable;
+                const array_size = var_type.array_size orelse return error.MissingArraySize;
+
+                // Calculate base address
+                try writer.print("    add x1, x29, #-{}\n", .{offset + array_size});
+
+                // Generate code for index
+                try codegen(index_node, writer, symbol_table, null);
+                try writer.writeAll("    sub x1, x1, x0\n"); // Subtract index from base address
+
+                // Generate code for the right-hand side of the assignment
+                try codegen(node.right.?, writer, symbol_table, null);
+
+                // Store the result in the array element
                 try writer.writeAll("    strb w0, [x1]\n");
             } else {
                 const varName = node.left.?.value.str;
@@ -401,13 +468,14 @@ fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable) !void {
 
                 // Generate code for the right-hand side of the assignment
                 if (node.right) |right| {
-                    try codegen(right, writer, symbol_table);
+                    try codegen(right, writer, symbol_table, null);
                 }
 
                 // Store the result in the variable
                 switch (var_type.type_enum) {
                     .U8 => try writer.print("    strb w0, [x29, #-{}]\n", .{offset}),
                     .U64, .Pointer => try writer.print("    str x0, [x29, #-{}]\n", .{offset}),
+                    .Array => return error.UnexpectedVar,
                 }
             }
         },
@@ -422,8 +490,44 @@ fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable) !void {
             }
         },
         .Dereference => {
-            if (node.left) |left| try codegen(left, writer, symbol_table);
+            if (node.left) |left| try codegen(left, writer, symbol_table, null);
             try writer.writeAll("    ldrb w0, [x0]\n");
+        },
+        .ArrayIndex => {
+            // Generate code for the array base
+            if (node.left) |left| try codegen(left, writer, symbol_table, null);
+            try writer.writeAll("    mov x1, x0\n");
+
+            // Generate code for the index
+            if (node.right) |right| try codegen(right, writer, symbol_table, null);
+
+            // Calculate the address of the element
+            try writer.writeAll("    sub x0, x1, x0\n");
+
+            // Load the value from the calculated address
+            try writer.writeAll("    ldrb w0, [x0]\n");
+        },
+        .ArrayInitialization => {
+            const var_name = parent_var_name orelse return error.MissingParentVariableName;
+            const offset = symbol_table.getVariableOffset(var_name) orelse return error.UndefinedVariable;
+            const var_type = symbol_table.getVariableType(var_name) orelse return error.UndefinedVariable;
+
+            if (var_type.type_enum != .Array) return error.ExpectedArrayType;
+            const element_type = var_type.inner.?;
+            const element_size = element_type.size();
+            const declared_size = var_type.array_size orelse return error.MissingArraySize;
+            const actual_size = @min(declared_size, node.value.nodes.len);
+
+            // Initialize elements in natural order
+            for (node.value.nodes[0..actual_size], 0..) |element, i| {
+                try codegen(element, writer, symbol_table, null);
+                const adjusted_offset = offset + (actual_size - 1 - i) * element_size;
+                switch (element_type.type_enum) {
+                    .U8 => try writer.print("    strb w0, [x29, #-{}]\n", .{adjusted_offset}),
+                    .U64 => try writer.print("    str x0, [x29, #-{}]\n", .{adjusted_offset}),
+                    else => return error.UnsupportedArrayElementType,
+                }
+            }
         },
         else => return error.UnsupportedNodeType,
     }

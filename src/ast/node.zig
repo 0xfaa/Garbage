@@ -13,6 +13,7 @@ pub const ENode = enum {
     // commands
     CmdPrintInt,
     CmdPrintChar,
+    CmdPrintBuf,
 
     // Variable stuff
     Variable,
@@ -22,6 +23,7 @@ pub const ENode = enum {
     // Types // Pointers
     Type,
     PointerType,
+    ArrayType,
     AddressOf,
     Dereference,
 
@@ -37,6 +39,10 @@ pub const ENode = enum {
 
     // While statement
     WhileStatement,
+
+    // Array
+    ArrayIndex,
+    ArrayInitialization,
 };
 
 pub const NodeValue = union(enum) {

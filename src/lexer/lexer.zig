@@ -20,6 +20,9 @@ pub fn lexer(input: []const u8, allocator: *const std.mem.Allocator) !std.ArrayL
                 } else if (input.len >= i + 10 and std.mem.eql(u8, input[i .. i + 10], "@printChar")) {
                     try tokens.append(.{ .type = EToken.CmdPrintChar, .value = "@printChar" });
                     i += 9;
+                } else if (input.len >= i + 9 and std.mem.eql(u8, input[i .. i + 9], "@printBuf")) {
+                    try tokens.append(.{ .type = EToken.CmdPrintBuf, .value = "@printBuf" });
+                    i += 8;
                 } else {
                     return error.InvalidCharacter;
                 }
@@ -80,6 +83,9 @@ pub fn lexer(input: []const u8, allocator: *const std.mem.Allocator) !std.ArrayL
             },
             '(' => try tokens.append(.{ .type = EToken.LParen, .value = "(" }),
             ')' => try tokens.append(.{ .type = EToken.RParen, .value = ")" }),
+            '[' => try tokens.append(.{ .type = EToken.LSquareBracket, .value = "[" }),
+            ']' => try tokens.append(.{ .type = EToken.RSquareBracket, .value = "]" }),
+            ',' => try tokens.append(.{ .type = EToken.Comma, .value = "," }),
             '\n' => try tokens.append(.{ .type = EToken.EOS, .value = "\\n" }),
             ' ', '\t' => {},
             else => return error.InvalidCharacter,

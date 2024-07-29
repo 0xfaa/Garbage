@@ -39,21 +39,20 @@ ret
 
 _main:    stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #32
-    mov w0, #0
-    strb w0, [x29, #-16]
-    add x0, x29, #-16
-    str x0, [x29, #-24]
-    ldr x0, [x29, #-24]
+    sub sp, sp, #48
+    mov w0, #63
+    strb w0, [x29, #-32]
+    add x0, x29, #-33
     mov x1, x0
-    mov w0, #5
-    strb w0, [x1]
-    ldrb w0, [x29, #-16]
-    bl _printInt
-    ldr x0, [x29, #-24]
-    ldrb w0, [x0]
-    bl _printInt
-    add sp, sp, #16
+    mov w0, #1
+    mov x2, x0
+    mov x3, #1
+    cmp x2, x3
+    csel x2, x2, x3, ls
+    mov x0, #1     ; stdout file descriptor
+    mov x16, #4    ; write syscall number
+    svc 0
+    add sp, sp, #32
     ldp x29, x30, [sp], #16
 
 _terminate:

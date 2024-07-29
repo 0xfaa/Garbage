@@ -37,9 +37,15 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
                 .Ampersand => {
                     self.i.* += 1;
                     const expr = try self.parseBasicPrimary();
-                    return Node.create(self.allocator, .AddressOf, expr, null, null, null);
+                    return Node.create(self.allocator, .AddressOf, expr, null, null, @as(i64, 0));
                 },
-                else => return error.UnexpectedToken,
+                .LBrace => {
+                    return try self.parseArrayInitialization();
+                },
+                else => {
+                    std.debug.print("Unexpected token: {s}\n", .{@tagName(self.tokens[self.i.*].type)});
+                    return error.UnexpectedToken;
+                },
             }
         }
 
@@ -49,7 +55,16 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
                 switch (self.tokens[self.i.*].type) {
                     .Dereference => {
                         self.i.* += 1;
-                        result = try Node.create(self.allocator, .Dereference, result, null, null, null);
+                        result = try Node.create(self.allocator, .Dereference, result, null, null, @as(i64, 0));
+                    },
+                    .LSquareBracket => {
+                        self.i.* += 1;
+                        const index = try self.parseExpression();
+                        if (self.tokens[self.i.*].type != .RSquareBracket) {
+                            return error.ExpectedRightSquareBracket;
+                        }
+                        self.i.* += 1;
+                        result = try Node.create(self.allocator, .ArrayIndex, result, index, null, @as(i64, 0));
                     },
                     else => break,
                 }
@@ -131,7 +146,36 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
             return left;
         }
 
+        fn parseArrayInitialization(self: *@This()) !*Node {
+            std.debug.print("Parsing array initialization\n", .{});
+            self.i.* += 1; // Skip the opening brace
+            var elements = std.ArrayList(*Node).init(self.allocator.*);
+            errdefer {
+                for (elements.items) |elem| elem.deinit(self.allocator);
+                elements.deinit();
+            }
+
+            while (self.i.* < self.tokens.len and self.tokens[self.i.*].type != .RBrace) {
+                const element = try self.parseExpression();
+                try elements.append(element);
+
+                if (self.tokens[self.i.*].type == .Comma) {
+                    self.i.* += 1;
+                } else if (self.tokens[self.i.*].type != .RBrace) {
+                    return error.ExpectedCommaOrRBrace;
+                }
+            }
+
+            if (self.i.* >= self.tokens.len or self.tokens[self.i.*].type != .RBrace) {
+                return error.ExpectedRBrace;
+            }
+            self.i.* += 1; // Skip the closing brace
+
+            return Node.create(self.allocator, .ArrayInitialization, null, null, null, try elements.toOwnedSlice());
+        }
+
         fn parseExpression(self: *@This()) anyerror!*Node {
+            std.debug.print("Parsing expression\n", .{});
             if (self.i.* >= self.tokens.len) {
                 return error.UnexpectedEndOfFile;
             }
@@ -140,13 +184,17 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
                 return try self.parseCmdPrintInt() orelse return error.UnexpectedToken;
             }
 
+            if (self.tokens[self.i.*].type == .LBrace) {
+                return try self.parseArrayInitialization();
+            }
+
             var expr = try self.parseComparisonExpression();
             expr = try self.parsePostfixOperations(expr);
 
             if (self.i.* < self.tokens.len and self.tokens[self.i.*].type == .Assignment) {
                 self.i.* += 1;
                 const right = try self.parseExpression();
-                expr = try Node.create(self.allocator, .Assignment, expr, right, null, null);
+                expr = try Node.create(self.allocator, .Assignment, expr, right, null, @as(i64, 0));
             }
 
             return expr;
@@ -170,11 +218,40 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
             return null;
         }
 
+        fn parseCmdPrintBuf(self: *@This()) anyerror!?*Node {
+            if (self.tokens[self.i.*].type == .CmdPrintBuf) {
+                self.i.* += 1;
+
+                // Parse the first argument (pointer)
+                const pointer_expr = try self.parseExpression();
+
+                // Expect a comma
+                if (self.tokens[self.i.*].type != .Comma) return error.ExpectedComma;
+                self.i.* += 1;
+
+                // Parse the second argument (number of chars)
+                const count_expr = try self.parseExpression();
+
+                // Create a new node for CmdPrintBuf
+                return Node.create(self.allocator, .CmdPrintBuf, pointer_expr, count_expr, null, self.tokens[self.i.* - 1].value);
+            }
+            return null;
+        }
+
         fn parseType(self: *@This()) !*Node {
-            if (self.tokens[self.i.*].type == .Mul) {
+            if (self.tokens[self.i.*].type == .LSquareBracket) {
+                self.i.* += 1; // Skip '['
+                const size_node = try self.parseExpression();
+                if (self.tokens[self.i.*].type != .RSquareBracket) {
+                    return error.ExpectedRightSquareBracket;
+                }
+                self.i.* += 1; // Skip ']'
+                const element_type = try self.parseType();
+                return Node.create(self.allocator, .ArrayType, size_node, element_type, null, @as(i64, 0)); // Use a dummy integer value
+            } else if (self.tokens[self.i.*].type == .Mul) {
                 self.i.* += 1;
                 const baseType = try self.parseType();
-                return Node.create(self.allocator, .PointerType, baseType, null, null, null);
+                return Node.create(self.allocator, .PointerType, baseType, null, null, @as([]const u8, ""));
             } else if (self.tokens[self.i.*].type == .TypeDeclaration) {
                 const typeValue = self.tokens[self.i.*].value;
                 self.i.* += 1;
@@ -184,10 +261,8 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
         }
 
         fn typeNodeToString(self: *@This(), typeNode: *Node) ![]const u8 {
-            std.debug.print("type node to str:\n", .{});
-            try typeNode.print(0, "-");
             var builder = std.ArrayList(u8).init(self.allocator.*);
-            defer builder.deinit();
+            errdefer builder.deinit();
 
             switch (typeNode.type) {
                 .Type => {
@@ -196,7 +271,31 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
                 .PointerType => {
                     try builder.appendSlice("*");
                     if (typeNode.left) |node| {
-                        try builder.appendSlice(node.value.str);
+                        const inner_type = try self.typeNodeToString(node);
+                        defer self.allocator.free(inner_type);
+                        try builder.appendSlice(inner_type);
+                    } else {
+                        return error.InvalidTypeNode;
+                    }
+                },
+                .ArrayType => {
+                    try builder.appendSlice("[");
+                    if (typeNode.left) |size_node| {
+                        if (size_node.type == .IntegerLiteral) {
+                            const size_str = try std.fmt.allocPrint(self.allocator.*, "{d}", .{size_node.value.integer});
+                            defer self.allocator.free(size_str);
+                            try builder.appendSlice(size_str);
+                        } else {
+                            return error.InvalidArraySize;
+                        }
+                    } else {
+                        return error.InvalidTypeNode;
+                    }
+                    try builder.appendSlice("]");
+                    if (typeNode.right) |element_type| {
+                        const inner_type = try self.typeNodeToString(element_type);
+                        defer self.allocator.free(inner_type);
+                        try builder.appendSlice(inner_type);
                     } else {
                         return error.InvalidTypeNode;
                     }
@@ -207,6 +306,7 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
         }
 
         fn parseVariableDeclaration(self: *@This()) !*Node {
+            std.debug.print("Parsing variable declaration\n", .{});
             if (self.tokens[self.i.*].type != .VariableDeclaration) {
                 return error.ExpectedVarDeclaration;
             }
@@ -225,7 +325,7 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
             self.i.* += 1;
 
             const typeNode = try self.parseType();
-            defer typeNode.deinit(self.allocator); // Ensure typeNode is freed
+            defer typeNode.deinit(self.allocator);
 
             const typeStr = try self.typeNodeToString(typeNode);
             defer self.allocator.free(typeStr);
@@ -236,7 +336,7 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
             self.i.* += 1;
 
             const expression = try self.parseExpression();
-            errdefer self.allocator.destroy(expression);
+            std.debug.print("Parsed expression for variable declaration\n", .{});
 
             return Node.createVariableDecl(self.allocator, .SayDeclaration, expression, null, null, varName, typeStr);
         }
@@ -340,6 +440,7 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
                 .VariableDeclaration => return try self.parseVariableDeclaration(),
                 .CmdPrintInt => return (try self.parseCmdPrintInt()) orelse return error.UnexpectedToken,
                 .CmdPrintChar => return (try self.parseCmdPrintChar()) orelse return error.UnexpectedToken,
+                .CmdPrintBuf => return (try self.parseCmdPrintBuf()) orelse return error.UnexpectedToken,
                 .If => return try self.parseIfStatement(),
                 .While => return try self.parseWhileStatement(),
                 else => return try self.parseExpression(),
@@ -351,6 +452,7 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
             errdefer program.deinit(self.allocator);
 
             while (self.i.* < self.tokens.len and self.tokens[self.i.*].type != .EOF) {
+                std.debug.print("Parsing statement at index {}: {s}\n", .{ self.i.*, @tagName(self.tokens[self.i.*].type) });
                 // Skip over empty lines
                 while (self.i.* < self.tokens.len and self.tokens[self.i.*].type == .EOS) {
                     self.i.* += 1;
@@ -362,6 +464,7 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
                 }
 
                 const stmt = try self.parseStatement();
+                std.debug.print("Parsed statement: {s}\n", .{@tagName(stmt.type)});
                 errdefer self.allocator.destroy(stmt);
                 try program.statements.append(stmt);
 

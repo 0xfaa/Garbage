@@ -1,7 +1,2 @@
-say one: u8 = 0
-say two: *u8 = &one
-
-two.* = 5
-
-@printInt one
-@printInt two.*
+say a: [1]u8 = {63}
+@printBuf a, 1

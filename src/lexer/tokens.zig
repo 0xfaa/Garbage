@@ -15,6 +15,7 @@ pub const EToken = enum {
     // Builtin features
     CmdPrintInt,
     CmdPrintChar,
+    CmdPrintBuf,
 
     // End of statement
     EOS,
@@ -48,5 +49,10 @@ pub const EToken = enum {
     // Pointers
     Ampersand,
     Dereference,
+
+    // Arrays
+    LSquareBracket,
+    RSquareBracket,
+    Comma,
 };
 pub const TToken = struct { type: EToken, value: []const u8 };
