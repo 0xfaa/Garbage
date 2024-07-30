@@ -92,6 +92,8 @@ export const FlowWithViewport = () => {
   );
 
   const onConnect = useCallback(
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-expect-error
     (params: Edge | Connection) => setStates((prev) => addEdge(params, prev)),
     []
   );

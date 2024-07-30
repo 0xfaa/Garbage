@@ -53,7 +53,7 @@ export class Stack {
     }
 
     public snapshot(instruction: string = ''): State {
-        const replacer = (key: string, value: unknown) => {
+        const replacer = (_key: string, value: unknown) => {
             if (typeof value === 'bigint') {
                 return value.toString();
             }
