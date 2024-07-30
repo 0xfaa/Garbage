@@ -37,16 +37,19 @@ add sp, sp, #21
 ldp x30, x29, [sp], #16
 ret
 
-_main:    stp x29, x30, [sp, #-16]!
+_main:    
+    stp x29, x30, [sp, #-16]!
     mov x29, sp
     sub sp, sp, #48
     mov w0, #63
+    strb w0, [x29, #-33]
+    mov w0, #10
     strb w0, [x29, #-32]
-    add x0, x29, #-33
+    add x0, x29, #-34
     mov x1, x0
-    mov w0, #1
+    mov w0, #2
     mov x2, x0
-    mov x3, #1
+    mov x3, #2
     cmp x2, x3
     csel x2, x2, x3, ls
     mov x0, #1     ; stdout file descriptor
