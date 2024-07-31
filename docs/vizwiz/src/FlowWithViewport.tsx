@@ -100,6 +100,8 @@ export const FlowWithViewport = () => {
   );
 
   const onConnect = useCallback(
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-expect-error
     (params: Edge | Connection) => setStates((prev) => addEdge(params, prev)),
     []
   );
@@ -226,6 +228,8 @@ export const FlowWithViewport = () => {
           >
             Made by @faa
           </a>
+          <br />
+          <span className="opacity-50">Use arrow up/down and space keys.</span>
         </span>
       </div>
 
