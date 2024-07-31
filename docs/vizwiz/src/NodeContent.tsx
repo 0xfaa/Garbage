@@ -7,7 +7,7 @@ interface NodeContentProps {
 }
 
 const NodeContent: React.FC<NodeContentProps> = ({ data }) => {
-  const { state, label } = data;
+  const { state, label, selected } = data;
 
   const byteToHex = (byte: bigint): string => {
     return byte.toString(16).padStart(2, "0");
@@ -32,7 +32,9 @@ const NodeContent: React.FC<NodeContentProps> = ({ data }) => {
   console.log(state.labels)
 
   return (
-    <div className="p-4 border border-gray-300 rounded-md bg-white font-mono w-[500px] h-[410px] overflow-auto hover:cursor-pointer">
+    <div className={`p-4 border border-gray-300 rounded-md bg-white font-mono w-[500px] h-[410px] overflow-auto hover:cursor-pointer ${
+      selected ? 'ring-2 ring-blue-500' : ''
+    }`}>
       <Handle type="target" position={Position.Left} />
       <h3 className="text-md font-bold mb-2">
         {label}: {state.instruction}

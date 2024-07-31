@@ -1,10 +1,4 @@
-import {
-  useState,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-} from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import ReactFlow, {
   Background,
   Controls,
@@ -20,6 +14,7 @@ import { type State, parseAndExecute, Stack } from "./vizwiz";
 import debounce from "lodash/debounce";
 import { isEqual } from "lodash";
 
+const NODE_WIDTH = 500;
 const NODE_HEIGHT = 410;
 const VERTICAL_SPACING = 69;
 
@@ -36,6 +31,9 @@ export const FlowWithViewport = () => {
   const [assemblyCode, setAssemblyCode] = useState("");
   const [states, setStates] = useState<State[]>([stack.snapshot("init")]);
   const prevStatesRef = useRef<State[]>([]);
+  const [selectedNodeIndex, setSelectedNodeIndex] = useState(0);
+  const keyPressIntervalRef = useRef<number | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const updateStates = useMemo(
     () =>
@@ -54,6 +52,8 @@ export const FlowWithViewport = () => {
         });
 
         setStates(newStates);
+        // Focus on the new node when it's added
+        setSelectedNodeIndex(newStates.length - 1);
       }, 300),
     [stack]
   );
@@ -71,9 +71,17 @@ export const FlowWithViewport = () => {
           x: 0,
           y: index * (NODE_HEIGHT + VERTICAL_SPACING),
         },
-        data: { state, label: `Instruction ${index}` } as NodeData,
+        data: {
+          state,
+          label: `Instruction ${index}`,
+          selected: index === selectedNodeIndex,
+        } as NodeData,
+        className:
+          index === selectedNodeIndex
+            ? "shadow-blue-500/50 shadow-lg transition-shadow duration-300"
+            : "transition-shadow duration-300",
       })),
-    [states]
+    [states, selectedNodeIndex]
   );
 
   const edges = useMemo(
@@ -92,11 +100,82 @@ export const FlowWithViewport = () => {
   );
 
   const onConnect = useCallback(
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-expect-error
     (params: Edge | Connection) => setStates((prev) => addEdge(params, prev)),
     []
   );
+
+  const moveCamera = useCallback(
+    (index: number) => {
+      const node = nodes[index];
+      if (node) {
+        const x = node.position.x + NODE_WIDTH / 2;
+        const y = node.position.y + NODE_HEIGHT / 2;
+        const zoom = getZoom();
+        setCenter(x, y, { duration: 800, zoom });
+      }
+    },
+    [nodes, getZoom, setCenter]
+  );
+
+  const handleKeyPress = useCallback(
+    (e: KeyboardEvent) => {
+      // Only handle key events when the textarea is not focused
+      if (document.activeElement !== textareaRef.current) {
+        if (e.code === "Space") {
+          e.preventDefault();
+          moveCamera(selectedNodeIndex);
+        } else if (e.code === "k") {
+          e.preventDefault();
+          setSelectedNodeIndex((prev) => Math.max(0, prev - 1));
+        } else if (e.code === "j") {
+          e.preventDefault();
+          setSelectedNodeIndex((prev) => Math.min(nodes.length - 1, prev + 1));
+        }
+      }
+    },
+    [selectedNodeIndex, nodes.length, moveCamera]
+  );
+
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      // Only handle key events when the textarea is not focused
+      if (document.activeElement !== textareaRef.current) {
+        if (e.code === "ArrowUp" || e.code === "ArrowDown") {
+          e.preventDefault();
+          setSelectedNodeIndex((prev) => {
+            if (e.code === "ArrowUp") {
+              const newIndex = Math.max(0, prev - 1);
+              moveCamera(newIndex);
+              return newIndex;
+            } else {
+              const newIndex = Math.min(nodes.length - 1, prev + 1);
+              moveCamera(newIndex);
+              return newIndex;
+            }
+          });
+        }
+      }
+    },
+    [nodes.length, moveCamera]
+  );
+
+  const handleKeyUp = useCallback(() => {
+    if (keyPressIntervalRef.current !== null) {
+      window.clearInterval(keyPressIntervalRef.current);
+      keyPressIntervalRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener("keypress", handleKeyPress);
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    return () => {
+      window.removeEventListener("keypress", handleKeyPress);
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, [handleKeyPress, handleKeyDown, handleKeyUp]);
 
   useEffect(() => {
     if (nodes.length > 0) {
@@ -113,24 +192,23 @@ export const FlowWithViewport = () => {
       }));
 
       if (!isEqual(currentStates, prevStates)) {
-        // First, fit view to all nodes
         fitView({ duration: 0, padding: 0.1 });
 
-        // Then, center on the last node
-        const lastNode = nodes[nodes.length - 1];
-        const x = lastNode.position.x + NODE_HEIGHT / 2;
-        const y = lastNode.position.y + VERTICAL_SPACING / 2;
+        if (currentStates.length < prevStates.length) {
+          setSelectedNodeIndex(
+            Math.min(selectedNodeIndex, currentStates.length - 1)
+          );
+        } else if (currentStates.length > prevStates.length) {
+          // Focus on the new node when it's added
+          setSelectedNodeIndex(currentStates.length - 1);
+        }
 
-        // Use the current zoom level
-        const zoom = getZoom();
-
-        // Animate to the new node
-        setCenter(x, y, { duration: 800, zoom });
+        moveCamera(selectedNodeIndex);
       }
 
       prevStatesRef.current = states;
     }
-  }, [nodes, states, fitView, setCenter, getZoom]);
+  }, [nodes, states, fitView, moveCamera, selectedNodeIndex]);
 
   return (
     <div className="flex h-screen">
@@ -170,6 +248,7 @@ export const FlowWithViewport = () => {
           AArch64 code
         </h2>
         <textarea
+          ref={textareaRef}
           className="text-sm w-full h-full p-2 border-none font-mono outline-none rounded text-black"
           value={assemblyCode}
           onChange={(e) => setAssemblyCode(e.target.value)}
