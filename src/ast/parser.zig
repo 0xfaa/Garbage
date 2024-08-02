@@ -64,7 +64,7 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
                             return error.ExpectedRightSquareBracket;
                         }
                         self.i.* += 1;
-                        result = try Node.create(self.allocator, .ArrayIndex, result, index, null, @as(i64, 0));
+                        result = try Node.create(self.allocator, .ArrayIndex, result, index, null, @as(i64, index.value.integer));
                     },
                     else => break,
                 }
@@ -181,7 +181,18 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
             }
 
             if (self.tokens[self.i.*].type == .CmdPrintInt) {
+                std.debug.print("Trying to parse CmdPrintInt from expression\n", .{});
                 return try self.parseCmdPrintInt() orelse return error.UnexpectedToken;
+            }
+
+            if (self.tokens[self.i.*].type == .CmdSocketCreate) {
+                std.debug.print("Trying to parse CmdSocketCreate from expression\n", .{});
+                return try self.parseSocketCreate();
+            }
+
+            if (self.tokens[self.i.*].type == .CmdSocketAccept) {
+                std.debug.print("Trying to parse CmdSocketAccept from expression\n", .{});
+                return try self.parseSocketAccept();
             }
 
             if (self.tokens[self.i.*].type == .LBrace) {
@@ -201,6 +212,7 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
         }
 
         fn parseCmdPrintChar(self: *@This()) anyerror!?*Node {
+            std.debug.print("Parsing CmdPrintChar\n", .{});
             if (self.tokens[self.i.*].type == .CmdPrintChar) {
                 self.i.* += 1;
                 const expression = try self.parseExpression();
@@ -210,6 +222,7 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
         }
 
         fn parseCmdPrintInt(self: *@This()) anyerror!?*Node {
+            std.debug.print("Parsing CmdPrintInt\n", .{});
             if (self.tokens[self.i.*].type == .CmdPrintInt) {
                 self.i.* += 1;
                 const expression = try self.parseExpression();
@@ -219,6 +232,7 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
         }
 
         fn parseCmdPrintBuf(self: *@This()) anyerror!?*Node {
+            std.debug.print("Parsing CmdPrintBuf\n", .{});
             if (self.tokens[self.i.*].type == .CmdPrintBuf) {
                 self.i.* += 1;
 
@@ -435,12 +449,83 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
             return Node.create(self.allocator, .WhileStatement, condition, block, loop_operation, null);
         }
 
+        fn parseSocketCreate(self: *@This()) !*Node {
+            std.debug.print("Parsing CmdSocketCreate\n", .{});
+            self.i.* += 1; // Consume the @socket_create token
+            return Node.create(self.allocator, .SocketCreate, null, null, null, null);
+        }
+
+        fn parseSocketBind(self: *@This()) !*Node {
+            self.i.* += 1; // Consume the @socket_bind token
+            const socket = try self.parseExpression();
+            if (self.tokens[self.i.*].type != .Comma) return error.ExpectedComma;
+            self.i.* += 1;
+            const port = try self.parseExpression();
+            return Node.create(self.allocator, .SocketBind, socket, port, null, null);
+        }
+
+        fn parseSocketListen(self: *@This()) !*Node {
+            self.i.* += 1; // Consume the @socket_listen token
+            const socket = try self.parseExpression();
+            if (self.tokens[self.i.*].type != .Comma) return error.ExpectedComma;
+            self.i.* += 1;
+            const backlog = try self.parseExpression();
+            return Node.create(self.allocator, .SocketListen, socket, backlog, null, null);
+        }
+
+        fn parseSocketAccept(self: *@This()) !*Node {
+            self.i.* += 1; // Consume the @socket_accept token
+            const socket = try self.parseExpression();
+            return Node.create(self.allocator, .SocketAccept, socket, null, null, null);
+        }
+
+        fn parseSocketRead(self: *@This()) !*Node {
+            self.i.* += 1; // Consume the @socket_read token
+            const socket = try self.parseExpression();
+            if (self.tokens[self.i.*].type != .Comma) return error.ExpectedComma;
+            self.i.* += 1;
+            const buffer = try self.parseExpression();
+            if (self.tokens[self.i.*].type != .Comma) return error.ExpectedComma;
+            self.i.* += 1;
+            const length = try self.parseExpression();
+            return Node.create(self.allocator, .SocketRead, socket, buffer, length, null);
+        }
+
+        fn parseSocketWrite(self: *@This()) !*Node {
+            self.i.* += 1; // Consume the @socket_write token
+            const socket = try self.parseExpression();
+            if (self.tokens[self.i.*].type != .Comma) return error.ExpectedComma;
+            self.i.* += 1;
+            const buffer = try self.parseExpression();
+            if (self.tokens[self.i.*].type != .Comma) return error.ExpectedComma;
+            self.i.* += 1;
+            const length = try self.parseExpression();
+            return Node.create(self.allocator, .SocketWrite, socket, buffer, length, null);
+        }
+
+        fn parseSocketClose(self: *@This()) !*Node {
+            self.i.* += 1; // Consume the @socket_close token
+            const socket = try self.parseExpression();
+            return Node.create(self.allocator, .SocketClose, socket, null, null, null);
+        }
+
         fn parseStatement(self: *@This()) !*Node {
             switch (self.tokens[self.i.*].type) {
                 .VariableDeclaration => return try self.parseVariableDeclaration(),
                 .CmdPrintInt => return (try self.parseCmdPrintInt()) orelse return error.UnexpectedToken,
                 .CmdPrintChar => return (try self.parseCmdPrintChar()) orelse return error.UnexpectedToken,
                 .CmdPrintBuf => return (try self.parseCmdPrintBuf()) orelse return error.UnexpectedToken,
+
+                // Networking
+                .CmdSocketCreate => return try self.parseSocketCreate(),
+                .CmdSocketBind => return try self.parseSocketBind(),
+                .CmdSocketListen => return try self.parseSocketListen(),
+                .CmdSocketAccept => return try self.parseSocketAccept(),
+                .CmdSocketRead => return try self.parseSocketRead(),
+                .CmdSocketWrite => return try self.parseSocketWrite(),
+                .CmdSocketClose => return try self.parseSocketClose(),
+
+                // Contoll Flow
                 .If => return try self.parseIfStatement(),
                 .While => return try self.parseWhileStatement(),
                 else => return try self.parseExpression(),

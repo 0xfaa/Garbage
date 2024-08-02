@@ -28,13 +28,16 @@ fi
 
 # Link the object file
 echo "Linking $object_file..."
-ld "$object_file" -o "$executable_file" -L"$sdk_path/usr/lib" -lSystem -e _main -arch arm64
+ld "$object_file" -o "$executable_file" -L"$sdk_path/usr/lib" -syslibroot -lSystem -e _main -arch arm64
 if [ $? -ne 0 ]; then
     echo "Error: Linking failed"
     exit 1
 fi
 
+# Make the file executable
+chmod +x "$executable_file"
+
 echo "Successfully created executable: $executable_file"
 
-# Clean up the object file
+# Clean up the object file (optional)
 rm "$object_file"

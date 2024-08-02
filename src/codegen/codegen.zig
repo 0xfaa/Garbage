@@ -75,13 +75,10 @@ const SymbolTable = struct {
             self.current_offset = (self.current_offset + 7) & ~@as(usize, 7);
         }
 
-        std.debug.print("Adding a variable: {s} with size: {}\n", .{ name, size });
-
-        try self.variables.put(name, .{ .offset = self.current_offset, .type = type_enum });
-        std.debug.print("Saved variable with offset: {}\n", .{self.current_offset});
-
+        const start_offset = self.current_offset;
         self.current_offset += size;
-        std.debug.print("New offset: {}\n", .{self.current_offset});
+
+        try self.variables.put(name, .{ .offset = start_offset, .type = type_enum });
     }
 
     fn getVariableOffset(self: *@This(), name: []const u8) ?usize {
@@ -148,6 +145,7 @@ pub fn codegen_init(program: *Program, writer: anytype) !void {
         \\ret
         \\
         \\_main:
+        \\
     );
 
     try writer.writeAll("    stp x29, x30, [sp, #-16]!\n");
@@ -289,6 +287,11 @@ fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable, parent_var_
             }
         },
         .SayDeclaration => {
+            try writer.writeAll(
+                \\
+                \\    ; Say variable declaration
+                \\
+            );
             const var_name = node.value.variable_decl.name;
             const var_type = node.value.variable_decl.type;
             const type_enum = try VarType.fromString(symbol_table.allocator, var_type);
@@ -356,7 +359,7 @@ fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable, parent_var_
             const offset = symbol_table.getVariableOffset(var_name) orelse return error.UndefinedVariable;
 
             // Calculate the correct base address
-            try writer.print("    add x0, x29, #-{}\n", .{offset + total_size});
+            try writer.print("    add x0, x29, #-{}\n", .{offset + total_size - element_size});
             try writer.writeAll("    mov x1, x0\n"); // Move pointer to x1
 
             // Generate code for the count argument
@@ -448,13 +451,14 @@ fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable, parent_var_
                 const var_type = symbol_table.getVariableType(array_name) orelse return error.UndefinedVariable;
                 const offset = symbol_table.getVariableOffset(array_name) orelse return error.UndefinedVariable;
                 const array_size = var_type.array_size orelse return error.MissingArraySize;
+                const element_size = var_type.inner.?.size();
 
                 // Calculate base address
-                try writer.print("    add x1, x29, #-{}\n", .{offset + array_size});
+                try writer.print("    add x1, x29, #-{}\n", .{offset + array_size - element_size});
 
                 // Generate code for index
                 try codegen(index_node, writer, symbol_table, null);
-                try writer.writeAll("    sub x1, x1, x0\n"); // Subtract index from base address
+                try writer.writeAll("    add x1, x1, x0\n"); // Subtract index from base address
 
                 // Generate code for the right-hand side of the assignment
                 try codegen(node.right.?, writer, symbol_table, null);
@@ -528,6 +532,137 @@ fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable, parent_var_
                     else => return error.UnsupportedArrayElementType,
                 }
             }
+        },
+        .SocketCreate => {
+            try writer.writeAll(
+                \\
+                \\    ; Socket create
+                \\    mov x0, #2          // AF_INET
+                \\    mov x1, #1          // SOCK_STREAM
+                \\    mov x2, #0          // protocol (0 = default)
+                \\    mov x16, #97        // socket syscall
+                \\    svc #0x80
+                \\    mov x1, x0          // save socket descriptor to x1
+            );
+        },
+        .SocketBind => {
+            try writer.writeAll(
+                \\
+                \\    ; Socket bind
+                \\
+            );
+
+            if (node.left) |socket_fd| try codegen(socket_fd, writer, symbol_table, null);
+            try writer.writeAll("    mov x9, x0          // save socket fd to x9\n");
+
+            // Generate code for port number argument
+            if (node.right) |port| try codegen(port, writer, symbol_table, null);
+            try writer.writeAll("    mov x10, x0         // save port to x10\n");
+
+            // Create sockaddr_in structure on stack
+            try writer.writeAll(
+                \\    sub sp, sp, #16     // allocate 16 bytes on stack for sockaddr_in
+                \\    mov x1, #2          // AF_INET
+                \\    strh w1, [sp]       // store sin_family
+                \\    rev w10, w10        // convert port to network byte order
+                \\    strh w10, [sp, #2]  // store sin_port
+                \\    mov x11, #0         // INADDR_ANY
+                \\    str x11, [sp, #4]   // store sin_addr
+                \\
+                \\    mov x0, x9          // socket fd
+                \\    mov x1, sp          // pointer to sockaddr_in
+                \\    mov x2, #16         // length of sockaddr_in
+                \\    mov x16, #104       // bind syscall
+                \\    svc #0x80
+                \\
+                \\    add sp, sp, #16     // deallocate stack space
+                \\    mov x1, x0          // save result to x1
+            );
+        },
+        .SocketListen => {
+            try writer.writeAll(
+                \\
+                \\    ; Socket listen
+                \\
+            );
+            if (node.left) |socket_fd| try codegen(socket_fd, writer, symbol_table, null);
+            try writer.writeAll("    mov x9, x0          // save socket fd to x9\n");
+
+            // Generate code for backlog argument
+            if (node.right) |backlog| try codegen(backlog, writer, symbol_table, null);
+            try writer.writeAll("    mov x1, x0          // move backlog to x1\n");
+
+            try writer.writeAll(
+                \\    mov x0, x9          // socket fd
+                \\    mov x16, #106       // listen syscall
+                \\    svc #0x80
+            );
+            // try codegenErrorCheck(writer, "socket_listen");
+            try writer.writeAll("\n    mov x1, x0          // save result to x1\n");
+        },
+        .SocketAccept => {
+            try writer.writeAll(
+                \\
+                \\    ; Socket accept
+                \\
+            );
+            if (node.left) |socket_fd| try codegen(socket_fd, writer, symbol_table, null);
+            try writer.writeAll("    mov x9, x0          // save socket fd to x9\n");
+
+            try writer.writeAll(
+                \\    mov x0, x9          // socket fd
+                \\    mov x1, #0          // NULL for client address
+                \\    mov x2, #0          // NULL for address length
+                \\    mov x16, #30        // accept syscall
+                \\    svc #0x80
+            );
+            // try codegenErrorCheck(writer, "socket_accept");
+            try writer.writeAll("\n    mov x1, x0          // save client socket fd to x1\n");
+        },
+        .SocketWrite => {
+            try writer.writeAll(
+                \\
+                \\    ; Socket write
+                \\
+            );
+            if (node.left) |socket_fd| try codegen(socket_fd, writer, symbol_table, null);
+            try writer.writeAll("    mov x9, x0          // save socket fd to x9\n");
+
+            // Generate code for buffer argument
+            if (node.right) |buffer| try codegen(buffer, writer, symbol_table, null);
+            try writer.writeAll("    mov x10, x0         // save buffer address to x10\n");
+
+            // Generate code for length argument
+            if (node.extra) |length| try codegen(length, writer, symbol_table, null);
+            try writer.writeAll("    mov x11, x0         // save length to x11\n");
+
+            try writer.writeAll(
+                \\    mov x0, x9          // socket fd
+                \\    mov x1, x10         // buffer address
+                \\    mov x2, x11         // length
+                \\    mov x16, #4         // write syscall
+                \\    svc #0x80
+            );
+            // try codegenErrorCheck(writer, "socket_write");
+            try writer.writeAll("\n    mov x1, x0          // save number of bytes written to x1\n");
+        },
+        .SocketClose => {
+            try writer.writeAll(
+                \\
+                \\    ; Socket close
+                \\
+            );
+            // Generate code for socket file descriptor argument
+            if (node.left) |socket_fd| try codegen(socket_fd, writer, symbol_table, null);
+            try writer.writeAll("    mov x9, x0          // save socket fd to x9\n");
+
+            try writer.writeAll(
+                \\    mov x0, x9          // socket fd
+                \\    mov x16, #6         // close syscall
+                \\    svc #0x80
+            );
+            // try codegenErrorCheck(writer, "socket_close");
+            try writer.writeAll("\n    mov x1, x0          // save result to x1\n");
         },
         else => return error.UnsupportedNodeType,
     }

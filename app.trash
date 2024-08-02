@@ -1,2 +1,20 @@
-say a: [2]u8 = {63, 10}
-@printBuf a, 2
+say server_socket: u64 = @socket_create
+@print_int server_socket
+
+say port: u64 = 8888
+@socket_bind server_socket, port
+
+say backlog: u64 = 5
+@socket_listen server_socket, backlog
+
+say client_socket: u64 = @socket_accept server_socket
+@print_int client_socket
+
+say response: [17]u8 = {72, 84, 84, 80, 47, 49, 46, 49, 32, 50, 48, 48, 32, 79, 75, 13, 10}
+
+@socket_write client_socket, &response[0], 17
+
+@socket_close client_socket 
+@socket_close server_socket
+
+@print_int 0

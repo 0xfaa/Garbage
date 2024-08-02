@@ -54,5 +54,14 @@ pub const EToken = enum {
     LSquareBracket,
     RSquareBracket,
     Comma,
+
+    // Networking primitives
+    CmdSocketCreate,
+    CmdSocketBind,
+    CmdSocketListen,
+    CmdSocketAccept,
+    CmdSocketRead,
+    CmdSocketWrite,
+    CmdSocketClose,
 };
 pub const TToken = struct { type: EToken, value: []const u8 };

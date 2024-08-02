@@ -43,6 +43,15 @@ pub const ENode = enum {
     // Array
     ArrayIndex,
     ArrayInitialization,
+
+    // Networking
+    SocketCreate,
+    SocketBind,
+    SocketListen,
+    SocketAccept,
+    SocketRead,
+    SocketWrite,
+    SocketClose,
 };
 
 pub const NodeValue = union(enum) {
