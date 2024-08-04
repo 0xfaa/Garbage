@@ -1,20 +1,12 @@
 say server_socket: u64 = @socket_create
-@print_int server_socket
+@socket_bind server_socket, 8888
+@socket_listen server_socket, 5
 
-say port: u64 = 8888
-@socket_bind server_socket, port
-
-say backlog: u64 = 5
-@socket_listen server_socket, backlog
-
-say client_socket: u64 = @socket_accept server_socket
-@print_int client_socket
-
-say response: [17]u8 = {72, 84, 84, 80, 47, 49, 46, 49, 32, 50, 48, 48, 32, 79, 75, 13, 10}
-
-@socket_write client_socket, &response[0], 17
-
-@socket_close client_socket 
-@socket_close server_socket
+while 1 > 0 {
+    say client_socket: u64 = @socket_accept server_socket
+    say response: [46]u8 = { 72, 84, 84, 80, 47, 49, 46, 49, 32, 50, 48, 48, 32, 79, 75, 13, 10, 67, 111, 110, 116, 101, 110, 116, 45, 84, 121, 112, 101, 58, 32, 116, 101, 120, 116, 47, 112, 108, 97, 105, 110, 13, 10, 67, 111, 110, 116, 101, 110, 116, 45, 76, 101, 110, 103, 116, 104, 58, 32, 49, 13, 10, 13, 10, 65 }
+    @socket_write client_socket, response, 46
+    @socket_close client_socket 
+}
 
 @print_int 0

@@ -186,6 +186,19 @@ pub fn codegen_init(program: *Program, writer: anytype) !void {
     );
 }
 
+fn codegenErrorCheck(writer: anytype, label: []const u8) !void {
+    try writer.print(
+        \\
+        \\    cmp x0, #0
+        \\    b.ge {s}_ok
+        \\    mov x1, x0          // save error code
+        \\    mov x0, #1          // exit syscall
+        \\    mov x16, #1
+        \\    svc #0x80
+        \\{s}_ok:
+    , .{ label, label });
+}
+
 fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable, parent_var_name: ?[]const u8) !void {
     switch (node.type) {
         .IntegerLiteral => {
@@ -323,13 +336,20 @@ fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable, parent_var_
             const var_name = node.value.str;
             const offset = symbol_table.getVariableOffset(var_name) orelse return error.UndefinedVariable;
             const var_type = symbol_table.getVariableType(var_name) orelse return error.UndefinedVariable;
+
+            std.debug.print("\nVAR NAME: {s}\n", .{var_name});
+            std.debug.print("VAR OFFSET: {}\n", .{offset});
+
             switch (var_type.type_enum) {
                 .U8 => try writer.print("    ldrb w0, [x29, #-{}]\n", .{offset}),
                 .U64 => try writer.print("    ldr x0, [x29, #-{}]\n", .{offset}),
                 .Pointer => try writer.print("    ldr x0, [x29, #-{}]\n", .{offset}),
                 .Array => {
+                    const arr_length = var_type.array_size.?;
+                    std.debug.print("ARR LENGTH: {?}\n", .{arr_length});
+
                     // For arrays, load the address of the first element
-                    try writer.print("    add x0, x29, #-{}\n", .{offset});
+                    try writer.print("    add x0, x29, #-{}\n", .{offset + arr_length - 1});
                 },
             }
         },
@@ -535,14 +555,36 @@ fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable, parent_var_
         },
         .SocketCreate => {
             try writer.writeAll(
-                \\
-                \\    ; Socket create
                 \\    mov x0, #2          // AF_INET
                 \\    mov x1, #1          // SOCK_STREAM
                 \\    mov x2, #0          // protocol (0 = default)
                 \\    mov x16, #97        // socket syscall
                 \\    svc #0x80
-                \\    mov x1, x0          // save socket descriptor to x1
+                \\    cmp x0, #0
+                \\    b.lt socket_create_error
+                \\    mov x19, x0         // save socket descriptor to x19
+                \\
+                \\    ; Set socket to blocking mode
+                \\    mov x0, x19         // socket fd
+                \\    mov x1, #3          // F_GETFL
+                \\    mov x16, #92        // fcntl syscall
+                \\    svc #0x80
+                \\    bic x1, x0, #0x800  // Set O_NONBLOCK flag
+                \\    mov x0, x19         // socket fd
+                \\    mov x2, x1          // New flags
+                \\    mov x1, #4          // F_SETFL
+                \\    mov x16, #92        // fcntl syscall
+                \\    svc #0x80
+                \\    cmp x0, #0
+                \\    b.lt socket_create_error
+                \\    mov x0, x19         // return the socket descriptor
+                \\    b socket_create_end
+                \\socket_create_error:
+                \\    mov x1, x0          // save error code to x1
+                \\    mov x0, #1          // prepare for exit syscall
+                \\    mov x16, #1         // exit syscall
+                \\    svc #0x80
+                \\socket_create_end:
             );
         },
         .SocketBind => {
@@ -560,11 +602,15 @@ fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable, parent_var_
             try writer.writeAll("    mov x10, x0         // save port to x10\n");
 
             // Create sockaddr_in structure on stack
+            // TODO: Fix the rev w10, w10
+            // Right now it just uses the port 8888, but it should use the developer-provided port
             try writer.writeAll(
                 \\    sub sp, sp, #16     // allocate 16 bytes on stack for sockaddr_in
                 \\    mov x1, #2          // AF_INET
                 \\    strh w1, [sp]       // store sin_family
-                \\    rev w10, w10        // convert port to network byte order
+                \\    ; rev w10, w10        // convert port to network byte order
+                \\    mov w10, #0xb822
+                \\
                 \\    strh w10, [sp, #2]  // store sin_port
                 \\    mov x11, #0         // INADDR_ANY
                 \\    str x11, [sp, #4]   // store sin_addr
@@ -597,7 +643,7 @@ fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable, parent_var_
                 \\    mov x16, #106       // listen syscall
                 \\    svc #0x80
             );
-            // try codegenErrorCheck(writer, "socket_listen");
+            try codegenErrorCheck(writer, "socket_listen");
             try writer.writeAll("\n    mov x1, x0          // save result to x1\n");
         },
         .SocketAccept => {
@@ -616,7 +662,7 @@ fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable, parent_var_
                 \\    mov x16, #30        // accept syscall
                 \\    svc #0x80
             );
-            // try codegenErrorCheck(writer, "socket_accept");
+            try codegenErrorCheck(writer, "socket_accept");
             try writer.writeAll("\n    mov x1, x0          // save client socket fd to x1\n");
         },
         .SocketWrite => {
@@ -643,7 +689,7 @@ fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable, parent_var_
                 \\    mov x16, #4         // write syscall
                 \\    svc #0x80
             );
-            // try codegenErrorCheck(writer, "socket_write");
+            try codegenErrorCheck(writer, "socket_write");
             try writer.writeAll("\n    mov x1, x0          // save number of bytes written to x1\n");
         },
         .SocketClose => {
@@ -661,7 +707,7 @@ fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable, parent_var_
                 \\    mov x16, #6         // close syscall
                 \\    svc #0x80
             );
-            // try codegenErrorCheck(writer, "socket_close");
+            try codegenErrorCheck(writer, "socket_close");
             try writer.writeAll("\n    mov x1, x0          // save result to x1\n");
         },
         else => return error.UnsupportedNodeType,
