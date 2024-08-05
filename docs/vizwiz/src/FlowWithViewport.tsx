@@ -7,6 +7,8 @@ import ReactFlow, {
   addEdge,
   MarkerType,
   useReactFlow,
+  EdgeMarker,
+  NodeTypes,
 } from "react-flow-renderer";
 import NodeContent from "./NodeContent";
 import { NodeData } from "./types";
@@ -16,7 +18,9 @@ import { isEqual } from "lodash";
 
 const NODE_WIDTH = 500;
 const NODE_HEIGHT = 410;
-const VERTICAL_SPACING = 69;
+const SPACING = 69;
+
+const nodeTypes: NodeTypes = { custom: NodeContent };
 
 export const FlowWithViewport = () => {
   const { fitView, setCenter, getZoom } = useReactFlow();
@@ -29,11 +33,54 @@ export const FlowWithViewport = () => {
   });
 
   const [assemblyCode, setAssemblyCode] = useState("");
-  const [states, setStates] = useState<State[]>([stack.snapshot("init")]);
+  const [states, setStates] = useState<State[]>([
+    stack.snapshot("init"),
+    stack.snapshot("init"),
+  ]);
   const prevStatesRef = useRef<State[]>([]);
-  const [selectedNodeIndex, setSelectedNodeIndex] = useState(0);
-  const keyPressIntervalRef = useRef<number | null>(null);
+  const [currentPairIndex, setCurrentPairIndex] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [autoFocus, setAutoFocus] = useState(true);
+
+  const nodes = useMemo(
+    () =>
+      states.map((state, index) => ({
+        id: `node-${index}`,
+        type: "custom",
+        position: {
+          x: index * (NODE_WIDTH + SPACING),
+          y: 0,
+        },
+        data: {
+          state,
+          label: `Instruction ${index}`,
+          selected:
+            index === currentPairIndex || index === currentPairIndex + 1,
+        } as NodeData,
+        className: `transition-shadow duration-300 ${
+          index === currentPairIndex || index === currentPairIndex + 1
+            ? "shadow-blue-500/50 shadow-lg"
+            : ""
+        }`,
+      })),
+    [states, currentPairIndex]
+  );
+
+  const visibleNodes = useMemo(
+    () => nodes.slice(currentPairIndex, currentPairIndex + 2),
+    [nodes, currentPairIndex]
+  );
+
+  const moveCamera = useCallback(() => {
+    if (visibleNodes.length > 0) {
+      const firstNodeX = visibleNodes[0].position.x;
+      const lastNodeX = visibleNodes[visibleNodes.length - 1].position.x;
+      const centerX = (firstNodeX + lastNodeX + NODE_WIDTH) / 2;
+      const centerY = NODE_HEIGHT / 2;
+      const zoom = getZoom();
+      setCenter(centerX, centerY, { duration: 800, zoom });
+    }
+  }, [visibleNodes, getZoom, setCenter]);
 
   const updateStates = useMemo(
     () =>
@@ -51,53 +98,49 @@ export const FlowWithViewport = () => {
           newStates.push(newState);
         });
 
+        if (newStates.length === 1) {
+          newStates.push(newStates[0]);
+        }
+
         setStates(newStates);
-        // Focus on the new node when it's added
-        setSelectedNodeIndex(newStates.length - 1);
+        if (autoFocus) {
+          setCurrentPairIndex(Math.max(0, newStates.length - 2));
+        }
       }, 300),
-    [stack]
+    [stack, autoFocus]
   );
 
   useEffect(() => {
     updateStates(assemblyCode);
   }, [assemblyCode, updateStates]);
 
-  const nodes = useMemo(
-    () =>
-      states.map((state, index) => ({
-        id: `node-${index}`,
-        type: "custom",
-        position: {
-          x: 0,
-          y: index * (NODE_HEIGHT + VERTICAL_SPACING),
-        },
-        data: {
-          state,
-          label: `Instruction ${index}`,
-          selected: index === selectedNodeIndex,
-        } as NodeData,
-        className:
-          index === selectedNodeIndex
-            ? "shadow-blue-500/50 shadow-lg transition-shadow duration-300"
-            : "transition-shadow duration-300",
-      })),
-    [states, selectedNodeIndex]
-  );
+  useEffect(() => {
+    if (autoFocus && states.length > prevStatesRef.current.length) {
+      setCurrentPairIndex(Math.max(0, states.length - 2));
+      moveCamera();
+    }
+    prevStatesRef.current = states;
+  }, [states, autoFocus, moveCamera]);
 
-  const edges = useMemo(
-    () =>
-      nodes.slice(0, -1).map((node, index) => ({
-        id: `edge-${index}`,
-        source: node.id,
-        target: `node-${index + 1}`,
-        type: "smoothstep",
+  const edges = useMemo(() => {
+    if (visibleNodes.length < 2) return [];
+    return [
+      {
+        id: "pair-edge",
+        source: visibleNodes[0].id,
+        target: visibleNodes[1].id,
+        type: "straight",
         animated: true,
+        style: { stroke: "#ffffff", strokeWidth: 2 },
+        sourceHandle: "right",
+        targetHandle: "left",
         markerEnd: {
           type: MarkerType.ArrowClosed,
-        },
-      })),
-    [nodes]
-  );
+          color: "#ffffff",
+        } as EdgeMarker,
+      },
+    ];
+  }, [visibleNodes]);
 
   const onConnect = useCallback(
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -106,78 +149,36 @@ export const FlowWithViewport = () => {
     []
   );
 
-  const moveCamera = useCallback(
-    (index: number) => {
-      const node = nodes[index];
-      if (node) {
-        const x = node.position.x + NODE_WIDTH / 2;
-        const y = node.position.y + NODE_HEIGHT / 2;
-        const zoom = getZoom();
-        setCenter(x, y, { duration: 800, zoom });
-      }
-    },
-    [nodes, getZoom, setCenter]
-  );
-
-  const handleKeyPress = useCallback(
-    (e: KeyboardEvent) => {
-      // Only handle key events when the textarea is not focused
-      if (document.activeElement !== textareaRef.current) {
-        if (e.code === "Space") {
-          e.preventDefault();
-          moveCamera(selectedNodeIndex);
-        } else if (e.code === "k") {
-          e.preventDefault();
-          setSelectedNodeIndex((prev) => Math.max(0, prev - 1));
-        } else if (e.code === "j") {
-          e.preventDefault();
-          setSelectedNodeIndex((prev) => Math.min(nodes.length - 1, prev + 1));
-        }
-      }
-    },
-    [selectedNodeIndex, nodes.length, moveCamera]
-  );
-
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      // Only handle key events when the textarea is not focused
       if (document.activeElement !== textareaRef.current) {
-        if (e.code === "ArrowUp" || e.code === "ArrowDown") {
+        if (e.code === "ArrowLeft" || e.code === "ArrowRight") {
           e.preventDefault();
-          setSelectedNodeIndex((prev) => {
-            if (e.code === "ArrowUp") {
-              const newIndex = Math.max(0, prev - 1);
-              moveCamera(newIndex);
-              return newIndex;
-            } else {
-              const newIndex = Math.min(nodes.length - 1, prev + 1);
-              moveCamera(newIndex);
-              return newIndex;
-            }
+          setCurrentPairIndex((prev) => {
+            const newIndex =
+              e.code === "ArrowLeft"
+                ? Math.max(0, prev - 1)
+                : Math.min(states.length - 2, prev + 1);
+            return newIndex;
           });
+        } else if (e.code === "Space") {
+          e.preventDefault();
+          moveCamera();
+        } else if (e.code === "KeyF") {
+          e.preventDefault();
+          setAutoFocus((prev) => !prev);
         }
       }
     },
-    [nodes.length, moveCamera]
+    [states.length, moveCamera]
   );
 
-  const handleKeyUp = useCallback(() => {
-    if (keyPressIntervalRef.current !== null) {
-      window.clearInterval(keyPressIntervalRef.current);
-      keyPressIntervalRef.current = null;
-    }
-  }, []);
-
   useEffect(() => {
-    window.addEventListener("keypress", handleKeyPress);
     window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("keyup", handleKeyUp);
     return () => {
-      window.removeEventListener("keypress", handleKeyPress);
       window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("keyup", handleKeyUp);
     };
-  }, [handleKeyPress, handleKeyDown, handleKeyUp]);
+  }, [handleKeyDown]);
 
   useEffect(() => {
     if (nodes.length > 0) {
@@ -194,28 +195,23 @@ export const FlowWithViewport = () => {
       }));
 
       if (!isEqual(currentStates, prevStates)) {
-        fitView({ duration: 0, padding: 0.1 });
-
-        if (currentStates.length < prevStates.length) {
-          setSelectedNodeIndex(
-            Math.min(selectedNodeIndex, currentStates.length - 1)
-          );
-        } else if (currentStates.length > prevStates.length) {
-          // Focus on the new node when it's added
-          setSelectedNodeIndex(currentStates.length - 1);
+        if (currentStates.length !== prevStates.length) {
+          fitView({ duration: 800, padding: 0.2 });
         }
-
-        moveCamera(selectedNodeIndex);
+        moveCamera();
       }
 
       prevStatesRef.current = states;
     }
-  }, [nodes, states, fitView, moveCamera, selectedNodeIndex]);
+  }, [nodes, states, moveCamera, fitView]);
+
+  useEffect(() => {
+    moveCamera();
+  }, [currentPairIndex, moveCamera]);
 
   return (
     <div className="flex h-screen">
-      {/* title */}
-      <div className="absolute top-5 left-5 opacity-35 z-10">
+      <div className="absolute top-5 left-5 opacity-35 z-10 text-white">
         <span className="text-md">Viz Wiz</span>
         <br />
         <span className="text-xs">
@@ -225,11 +221,21 @@ export const FlowWithViewport = () => {
             href="https://x.com/0x466161"
             className="underline"
             target="_blank"
+            rel="noopener noreferrer"
           >
             Made by @faa
           </a>
           <br />
-          <span className="opacity-50">Use arrow up/down and space keys.</span>
+        </span>
+      </div>
+
+      <div className="absolute bottom-5 left-14 text-white z-10 text-xs opacity-35">
+        <span className="opacity-50">
+          Use arrow left/right keys to navigate.
+          <br />
+          Press Space to center.
+          <br />
+          Press F to toggle auto-focus ({autoFocus ? "ON" : "OFF"}).
         </span>
       </div>
 
@@ -240,20 +246,20 @@ export const FlowWithViewport = () => {
           onNodesChange={() => {}}
           onEdgesChange={() => {}}
           onConnect={onConnect}
-          nodeTypes={{ custom: NodeContent }}
+          nodeTypes={nodeTypes}
           fitView
+          fitViewOptions={{ padding: 0.2 }}
+          className="bg-black text-white"
         >
           <Background />
           <Controls />
         </ReactFlow>
       </div>
-      <div className="bg-zinc-200 overflow-y-auto w-72 flex flex-col items-center p-2">
-        <h2 className="text-xl font-bold mb-2 px-2 text-zinc-800">
-          AArch64 code
-        </h2>
+      <div className="bg-zinc-200 overflow-y-auto w-72 flex flex-col items-center p-2 bg-zinc-800">
+        <h2 className="text-xl font-bold mb-2 px-2 text-white">AArch64 code</h2>
         <textarea
           ref={textareaRef}
-          className="text-sm w-full h-full p-2 border-none font-mono outline-none rounded text-black"
+          className="text-sm w-full h-full p-2 border-none font-mono outline-none rounded text-black bg-zinc-900 text-white placeholder-white"
           value={assemblyCode}
           onChange={(e) => setAssemblyCode(e.target.value)}
           placeholder="Enter instructions..."

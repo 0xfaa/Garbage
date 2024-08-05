@@ -29,17 +29,16 @@ const NodeContent: React.FC<NodeContentProps> = ({ data }) => {
   const stackBytes = getStackBytes();
   const totalRows = stackBytes.length / 8;
 
-  console.log(state.labels)
-
   return (
-    <div className={`p-4 border border-gray-300 rounded-md bg-white font-mono w-[500px] h-[410px] overflow-auto hover:cursor-pointer ${
+    <div className={`p-4 border border-gray-300 rounded-md font-mono w-[500px] h-[410px] overflow-auto bg-zinc-900 text-white hover:cursor-pointer ${
       selected ? 'ring-2 ring-blue-500' : ''
     }`}>
-      <Handle type="target" position={Position.Left} />
+      <Handle type="target" position={Position.Left} id="left" style={{ visibility: 'hidden' }} />
+      <Handle type="source" position={Position.Right} id="right" style={{ visibility: 'hidden' }} />
       <h3 className="text-md font-bold mb-2">
         {label}: {state.instruction}
       </h3>
-      <span className="text-gray-900 font-bold text-md">Stack</span>
+      <span className="text-zinc-300 font-bold text-md">Stack</span>
       <div className="text-sm w-fit flex mt-2">
         <div className="flex-grow">
           {Array.from({ length: totalRows }, (_, index) => {
@@ -49,7 +48,7 @@ const NodeContent: React.FC<NodeContentProps> = ({ data }) => {
             return (
               <div key={rowIndex} className="flex items-center mt-1">
                 <span className="w-8 text-xs">
-                  [{rowIndex.toString().padStart(2, "0")}]
+                  {rowIndex.toString().padStart(2, "0")}:
                 </span>
                 <div className={`flex flex-wrap justify-start`}>
                   {stackBytes.slice(rowIndex * 8, (rowIndex + 1) * 8).map((byte, byteIndex) => {
@@ -57,14 +56,14 @@ const NodeContent: React.FC<NodeContentProps> = ({ data }) => {
                     return (
                       <span
                         key={byteIndex}
-                        className={`mr-1 px-1 text-xs ${
+                        className={`mr-1 px-1 text-xs rounded-sm ${
                           byte !== BigInt(0) && 'text-red-500'
                         } ${
                           byteAddress === spIndex
                             ? "bg-green-400"
                             : byteAddress === fpIndex
                             ? "bg-blue-400"
-                            : "bg-gray-100"
+                            : "bg-black"
                         }`}
                       >
                         {byteToHex(byte)}
@@ -92,7 +91,6 @@ const NodeContent: React.FC<NodeContentProps> = ({ data }) => {
           })}
         </div>
       </div>
-      <Handle type="source" position={Position.Right} />
     </div>
   );
 };
