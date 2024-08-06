@@ -16,9 +16,10 @@ import { type State, parseAndExecute, Stack } from "./vizwiz";
 import debounce from "lodash/debounce";
 import { isEqual } from "lodash";
 
-const NODE_WIDTH = 500;
-const NODE_HEIGHT = 410;
+const NODE_WIDTH = 800;
+const NODE_HEIGHT = 1010;
 const SPACING = 69;
+const STACK_SIZE = 255;
 
 const nodeTypes: NodeTypes = { custom: NodeContent };
 
@@ -26,7 +27,7 @@ export const FlowWithViewport = () => {
   const { fitView, setCenter, getZoom } = useReactFlow();
 
   const [stack] = useState(() => {
-    const s = new Stack(16);
+    const s = new Stack(STACK_SIZE);
     s.registers["x29"] = BigInt("0x1111111111111111");
     s.registers["x30"] = BigInt("0x2222222222222222");
     return s;
@@ -88,7 +89,7 @@ export const FlowWithViewport = () => {
         const lines = code.split("\n").filter((line) => line.trim());
         const newStates: State[] = [stack.snapshot("init")];
 
-        const tempStack = new Stack(16);
+        const tempStack = new Stack(STACK_SIZE);
         tempStack.registers["x29"] = BigInt("0x1111111111111111");
         tempStack.registers["x30"] = BigInt("0x2222222222222222");
 
