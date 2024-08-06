@@ -63,5 +63,8 @@ pub const EToken = enum {
     CmdSocketRead,
     CmdSocketWrite,
     CmdSocketClose,
+
+    // Strings
+    StringLiteral,
 };
 pub const TToken = struct { type: EToken, value: []const u8 };

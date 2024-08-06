@@ -64,7 +64,7 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
                             return error.ExpectedRightSquareBracket;
                         }
                         self.i.* += 1;
-                        result = try Node.create(self.allocator, .ArrayIndex, result, index, null, @as(i64, index.value.integer));
+                        result = try Node.create(self.allocator, .ArrayIndex, result, index, null, @as(i64, 0));
                     },
                     else => break,
                 }
@@ -148,6 +148,12 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
 
         fn parseArrayInitialization(self: *@This()) !*Node {
             std.debug.print("Parsing array initialization\n", .{});
+            if (self.tokens[self.i.*].type == .StringLiteral) {
+                const str_value = self.tokens[self.i.*].value;
+                self.i.* += 1;
+                return Node.create(self.allocator, .StringLiteral, null, null, null, str_value);
+            }
+
             self.i.* += 1; // Skip the opening brace
             var elements = std.ArrayList(*Node).init(self.allocator.*);
             errdefer {
@@ -205,7 +211,15 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
             if (self.i.* < self.tokens.len and self.tokens[self.i.*].type == .Assignment) {
                 self.i.* += 1;
                 const right = try self.parseExpression();
-                expr = try Node.create(self.allocator, .Assignment, expr, right, null, @as(i64, 0));
+
+                // Check if the left side is an ArrayIndex node
+                if (expr.type == .ArrayIndex) {
+                    // Create an Assignment node with the ArrayIndex as the left child
+                    return try Node.create(self.allocator, .Assignment, expr, right, null, @as(i64, 0));
+                } else {
+                    // For regular assignments
+                    return try Node.create(self.allocator, .Assignment, expr, right, null, @as(i64, 0));
+                }
             }
 
             return expr;
@@ -255,7 +269,10 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
         fn parseType(self: *@This()) !*Node {
             if (self.tokens[self.i.*].type == .LSquareBracket) {
                 self.i.* += 1; // Skip '['
-                const size_node = try self.parseExpression();
+                var size_node: ?*Node = null;
+                if (self.tokens[self.i.*].type != .RSquareBracket) {
+                    size_node = try self.parseExpression();
+                }
                 if (self.tokens[self.i.*].type != .RSquareBracket) {
                     return error.ExpectedRightSquareBracket;
                 }
@@ -349,7 +366,11 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
             }
             self.i.* += 1;
 
-            const expression = try self.parseExpression();
+            const expression = if (self.tokens[self.i.*].type == .StringLiteral)
+                try self.parseArrayInitialization()
+            else
+                try self.parseExpression();
+
             std.debug.print("Parsed expression for variable declaration\n", .{});
 
             return Node.createVariableDecl(self.allocator, .SayDeclaration, expression, null, null, varName, typeStr);

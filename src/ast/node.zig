@@ -52,6 +52,9 @@ pub const ENode = enum {
     SocketRead,
     SocketWrite,
     SocketClose,
+
+    // Strings
+    StringLiteral,
 };
 
 pub const NodeValue = union(enum) {

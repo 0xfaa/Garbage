@@ -186,19 +186,6 @@ pub fn codegen_init(program: *Program, writer: anytype) !void {
     );
 }
 
-fn codegenErrorCheck(writer: anytype, label: []const u8) !void {
-    try writer.print(
-        \\
-        \\    cmp x0, #0
-        \\    b.ge {s}_ok
-        \\    mov x1, x0          // save error code
-        \\    mov x0, #1          // exit syscall
-        \\    mov x16, #1
-        \\    svc #0x80
-        \\{s}_ok:
-    , .{ label, label });
-}
-
 fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable, parent_var_name: ?[]const u8) !void {
     switch (node.type) {
         .IntegerLiteral => {
@@ -319,7 +306,7 @@ fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable, parent_var_
 
             if (type_enum.type_enum == .Array) {
                 if (node.left) |left| {
-                    if (left.type == .ArrayInitialization) {
+                    if (left.type == .ArrayInitialization or left.type == .StringLiteral) {
                         try codegen(left, writer, symbol_table, var_name);
                     }
                 }
@@ -608,8 +595,7 @@ fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable, parent_var_
                 \\    sub sp, sp, #16     // allocate 16 bytes on stack for sockaddr_in
                 \\    mov x1, #2          // AF_INET
                 \\    strh w1, [sp]       // store sin_family
-                \\    ; rev w10, w10        // convert port to network byte order
-                \\    mov w10, #0xb822
+                \\    rev16 w10, w10        // convert port to network byte order
                 \\
                 \\    strh w10, [sp, #2]  // store sin_port
                 \\    mov x11, #0         // INADDR_ANY
@@ -643,7 +629,6 @@ fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable, parent_var_
                 \\    mov x16, #106       // listen syscall
                 \\    svc #0x80
             );
-            try codegenErrorCheck(writer, "socket_listen");
             try writer.writeAll("\n    mov x1, x0          // save result to x1\n");
         },
         .SocketAccept => {
@@ -662,7 +647,6 @@ fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable, parent_var_
                 \\    mov x16, #30        // accept syscall
                 \\    svc #0x80
             );
-            try codegenErrorCheck(writer, "socket_accept");
             try writer.writeAll("\n    mov x1, x0          // save client socket fd to x1\n");
         },
         .SocketWrite => {
@@ -689,7 +673,6 @@ fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable, parent_var_
                 \\    mov x16, #4         // write syscall
                 \\    svc #0x80
             );
-            try codegenErrorCheck(writer, "socket_write");
             try writer.writeAll("\n    mov x1, x0          // save number of bytes written to x1\n");
         },
         .SocketClose => {
@@ -707,8 +690,32 @@ fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable, parent_var_
                 \\    mov x16, #6         // close syscall
                 \\    svc #0x80
             );
-            try codegenErrorCheck(writer, "socket_close");
             try writer.writeAll("\n    mov x1, x0          // save result to x1\n");
+        },
+        .StringLiteral => {
+            const str_value = node.value.str;
+            const var_name = parent_var_name orelse return error.MissingParentVariableName;
+            const offset = symbol_table.getVariableOffset(var_name) orelse return error.UndefinedVariable;
+            const var_type = symbol_table.getVariableType(var_name) orelse return error.UndefinedVariable;
+
+            if (var_type.type_enum != .Array) return error.ExpectedArrayType;
+            const element_type = var_type.inner.?;
+            if (element_type.type_enum != .U8) return error.ExpectedU8ArrayForString;
+            const declared_size = var_type.array_size orelse str_value.len;
+            const actual_size = @min(declared_size, str_value.len);
+
+            for (str_value[0..actual_size], 0..) |char, i| {
+                const adjusted_offset = offset + (declared_size - 1 - i);
+                try writer.print("    mov w0, #{}\n", .{char});
+                try writer.print("    strb w0, [x29, #-{}]\n", .{adjusted_offset});
+            }
+
+            // Null-terminate if there's space
+            if (actual_size < declared_size) {
+                const null_terminator_offset = offset + (declared_size - actual_size - 1);
+                try writer.print("    mov w0, #0\n", .{});
+                try writer.print("    strb w0, [x29, #-{}]\n", .{null_terminator_offset});
+            }
         },
         else => return error.UnsupportedNodeType,
     }

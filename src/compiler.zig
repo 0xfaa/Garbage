@@ -12,7 +12,12 @@ const codegen_init = @import("./codegen/codegen.zig").codegen_init;
 
 pub fn compile(code: []const u8, allocator: std.mem.Allocator) ![]u8 {
     const tokens = try lexer(code, &allocator);
-    defer tokens.deinit();
+    defer {
+        for (tokens.items) |token| {
+            allocator.free(token.value);
+        }
+        tokens.deinit();
+    }
     for (tokens.items) |t| std.debug.print("token: type = {} | value = {s}\n", .{ t.type, t.value });
 
     var program = try parse(tokens.items, &allocator);

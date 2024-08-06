@@ -3,9 +3,14 @@ const EToken = @import("./tokens.zig").EToken;
 const TToken = @import("./tokens.zig").TToken;
 
 pub fn lexer(input: []const u8, allocator: *const std.mem.Allocator) !std.ArrayList(TToken) {
-    var tokens = std.ArrayList(TToken).init(allocator.*);
-    var i: usize = 0;
+    var arena = std.heap.ArenaAllocator.init(allocator.*);
+    defer arena.deinit();
+    const arena_allocator = arena.allocator();
 
+    var tokens = std.ArrayList(TToken).init(allocator.*);
+    errdefer tokens.deinit();
+
+    var i: usize = 0;
     std.debug.print("Starting lexer. Input length: {d}\n", .{input.len});
 
     while (i < input.len) : (i += 1) {
@@ -119,6 +124,35 @@ pub fn lexer(input: []const u8, allocator: *const std.mem.Allocator) !std.ArrayL
             ' ', '\t' => {
                 std.debug.print("Skipping whitespace at index {d}\n", .{i});
             },
+            '"' => {
+                i += 1;
+                var escaped = false;
+                var string_builder = std.ArrayList(u8).init(arena_allocator);
+
+                while (i < input.len and (input[i] != '"' or escaped)) {
+                    if (escaped) {
+                        switch (input[i]) {
+                            'n' => try string_builder.append('\n'),
+                            't' => try string_builder.append('\t'),
+                            'r' => try string_builder.append('\r'),
+                            '\\' => try string_builder.append('\\'),
+                            '"' => try string_builder.append('"'),
+                            else => return error.InvalidEscapeSequence,
+                        }
+                        escaped = false;
+                    } else if (input[i] == '\\') {
+                        escaped = true;
+                    } else {
+                        try string_builder.append(input[i]);
+                    }
+                    i += 1;
+                }
+
+                if (i >= input.len) return error.UnterminatedString;
+                const string_literal = try string_builder.toOwnedSlice();
+                try appendToken(&tokens, .StringLiteral, string_literal);
+                std.debug.print("Parsed string literal: {s}\n", .{string_literal});
+            },
             else => {
                 std.debug.print("Invalid character at index {d}: '{c}'\n", .{ i, c });
                 return error.InvalidCharacter;
@@ -132,6 +166,8 @@ pub fn lexer(input: []const u8, allocator: *const std.mem.Allocator) !std.ArrayL
 }
 
 fn appendToken(tokens: *std.ArrayList(TToken), token_type: EToken, value: []const u8) !void {
-    try tokens.append(.{ .type = token_type, .value = value });
+    const copied_value = try tokens.allocator.dupe(u8, value);
+    errdefer tokens.allocator.free(copied_value);
+    try tokens.append(.{ .type = token_type, .value = copied_value });
     std.debug.print("Appended token: {s} with value: {s}\n", .{ @tagName(token_type), value });
 }
