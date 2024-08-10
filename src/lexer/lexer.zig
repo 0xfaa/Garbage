@@ -45,7 +45,7 @@ pub fn lexer(input: []const u8, allocator: std.mem.Allocator) LexerError!LexerRe
             '.' => i = try handleDot(&tokens, input, i),
             '\n' => try appendToken(&tokens, .EOS, "\\n"),
             ' ', '\t' => {},
-            '"' => i = try handleString(&tokens, input, i),
+            '"' => i = try handleString(&tokens, input, i, allocator),
             else => return error.InvalidCharacter,
         }
     }
@@ -92,6 +92,7 @@ fn handleAtCommand(tokens: *std.ArrayList(TToken), input: []const u8, i: usize) 
         .{ .name = "@socket_read", .token = .CmdSocketRead },
         .{ .name = "@socket_write", .token = .CmdSocketWrite },
         .{ .name = "@socket_close", .token = .CmdSocketClose },
+        .{ .name = "@print_buf", .token = .CmdPrintBuf },
         .{ .name = "@print_int", .token = .CmdPrintInt },
     };
 
@@ -163,20 +164,51 @@ fn handleDot(tokens: *std.ArrayList(TToken), input: []const u8, i: usize) !usize
     }
 }
 
-fn handleString(tokens: *std.ArrayList(TToken), input: []const u8, start: usize) !usize {
+fn handleString(tokens: *std.ArrayList(TToken), input: []const u8, start: usize, allocator: std.mem.Allocator) !usize {
+    var result = std.ArrayList(u8).init(allocator);
+    defer result.deinit();
+
     var i = start + 1;
     while (i < input.len and input[i] != '"') : (i += 1) {
         if (input[i] == '\\' and i + 1 < input.len) {
             i += 1;
+            const escaped_char = try processEscapeSequence(input[i]);
+            try result.append(escaped_char);
+        } else {
+            try result.append(input[i]);
         }
     }
+
     if (i >= input.len) return error.UnterminatedString;
-    try appendToken(tokens, .StringLiteral, input[start + 1 .. i]);
+
+    const string_literal = try result.toOwnedSlice();
+    try appendToken(tokens, .StringLiteral, string_literal);
     return i;
 }
 
+fn processEscapeSequence(c: u8) !u8 {
+    return switch (c) {
+        'n' => '\n',
+        'r' => '\r',
+        't' => '\t',
+        '\\' => '\\',
+        '"' => '"',
+        '0' => 0,
+        else => error.InvalidEscapeSequence,
+    };
+}
+
 fn appendToken(tokens: *std.ArrayList(TToken), token_type: EToken, value: []const u8) !void {
-    const duped_value = try tokens.allocator.dupe(u8, value);
-    errdefer tokens.allocator.free(duped_value);
+    const duped_value = if (token_type == .StringLiteral)
+        value
+    else
+        try tokens.allocator.dupe(u8, value);
+
+    errdefer {
+        if (token_type != .StringLiteral) {
+            tokens.allocator.free(duped_value);
+        }
+    }
+
     try tokens.append(.{ .type = token_type, .value = duped_value });
 }
