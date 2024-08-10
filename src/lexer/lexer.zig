@@ -2,172 +2,181 @@ const std = @import("std");
 const EToken = @import("./tokens.zig").EToken;
 const TToken = @import("./tokens.zig").TToken;
 
-pub fn lexer(input: []const u8, allocator: *const std.mem.Allocator) !std.ArrayList(TToken) {
-    var arena = std.heap.ArenaAllocator.init(allocator.*);
-    defer arena.deinit();
-    const arena_allocator = arena.allocator();
+pub const LexerError = error{
+    InvalidCharacter,
+    UnterminatedString,
+    InvalidEscapeSequence,
+    InvalidAtCommand,
+    UnexpectedDot,
+    OutOfMemory,
+};
 
-    var tokens = std.ArrayList(TToken).init(allocator.*);
-    errdefer tokens.deinit();
+pub const LexerResult = struct {
+    tokens: []TToken,
+    allocator: std.mem.Allocator,
+
+    pub fn deinit(self: *LexerResult) void {
+        for (self.tokens) |token| {
+            self.allocator.free(token.value);
+        }
+        self.allocator.free(self.tokens);
+    }
+};
+
+pub fn lexer(input: []const u8, allocator: std.mem.Allocator) LexerError!LexerResult {
+    var tokens = std.ArrayList(TToken).init(allocator);
+    errdefer {
+        for (tokens.items) |token| {
+            allocator.free(token.value);
+        }
+        tokens.deinit();
+    }
 
     var i: usize = 0;
-    std.debug.print("Starting lexer. Input length: {d}\n", .{input.len});
-
     while (i < input.len) : (i += 1) {
         const c = input[i];
-        std.debug.print("Processing character at index {d}: '{c}'\n", .{ i, c });
-
         switch (c) {
-            '{' => try appendToken(&tokens, .LBrace, "{"),
-            '}' => try appendToken(&tokens, .RBrace, "}"),
-            ':' => try appendToken(&tokens, .Colon, ":"),
-            '&' => try appendToken(&tokens, .Ampersand, "&"),
-            '@' => {
-                std.debug.print("Encountered @. Remaining input: {s}\n", .{input[i..]});
-                const commands = [_]struct { name: []const u8, token: EToken }{
-                    .{ .name = "@socket_create", .token = .CmdSocketCreate },
-                    .{ .name = "@socket_bind", .token = .CmdSocketBind },
-                    .{ .name = "@socket_listen", .token = .CmdSocketListen },
-                    .{ .name = "@socket_accept", .token = .CmdSocketAccept },
-                    .{ .name = "@socket_read", .token = .CmdSocketRead },
-                    .{ .name = "@socket_write", .token = .CmdSocketWrite },
-                    .{ .name = "@socket_close", .token = .CmdSocketClose },
-                    .{ .name = "@print_int", .token = .CmdPrintInt },
-                    .{ .name = "@print_char", .token = .CmdPrintChar },
-                    .{ .name = "@print_buf", .token = .CmdPrintBuf },
-                };
-
-                var matched = false;
-                for (commands) |cmd| {
-                    if (input.len >= i + cmd.name.len and std.mem.eql(u8, input[i .. i + cmd.name.len], cmd.name)) {
-                        try appendToken(&tokens, cmd.token, cmd.name);
-                        i += cmd.name.len - 1;
-                        matched = true;
-                        break;
-                    }
-                }
-
-                if (!matched) {
-                    std.debug.print("Invalid @ command at index {d}. Partial command: ", .{i});
-                    var j: usize = i;
-                    while (j < input.len and input[j] != ' ' and input[j] != '\n') : (j += 1) {
-                        std.debug.print("{c}", .{input[j]});
-                    }
-                    std.debug.print("\n", .{});
-                    return error.InvalidCharacter;
-                }
-            },
-            '0'...'9' => {
-                const start = i;
-                while (i < input.len and std.ascii.isDigit(input[i])) : (i += 1) {}
-                try appendToken(&tokens, .Integer, input[start..i]);
-                i -= 1;
-                std.debug.print("Parsed integer: {s}\n", .{input[start .. i + 1]});
-            },
-            'a'...'z', 'A'...'Z', '_' => {
-                const start = i;
-                while (i < input.len and (std.ascii.isAlphanumeric(input[i]) or input[i] == '_')) : (i += 1) {}
-                const identifier = input[start..i];
-                std.debug.print("Parsed identifier: {s}\n", .{identifier});
-                if (std.mem.eql(u8, identifier, "say")) {
-                    try appendToken(&tokens, .VariableDeclaration, identifier);
-                } else if (std.mem.eql(u8, identifier, "if")) {
-                    try appendToken(&tokens, .If, identifier);
-                } else if (std.mem.eql(u8, identifier, "while")) {
-                    try appendToken(&tokens, .While, identifier);
-                } else if (std.mem.eql(u8, identifier, "u64") or std.mem.eql(u8, identifier, "u8")) {
-                    try appendToken(&tokens, .TypeDeclaration, identifier);
-                } else {
-                    try appendToken(&tokens, .SayIdentifier, identifier);
-                }
-                i -= 1;
-            },
-            '+' => try appendToken(&tokens, .Add, "+"),
-            '*' => try appendToken(&tokens, .Mul, "*"),
-            '-' => try appendToken(&tokens, .Sub, "-"),
-            '/' => try appendToken(&tokens, .Div, "/"),
-            '%' => try appendToken(&tokens, .Modulo, "%"),
-            '=' => {
-                if (i + 1 < input.len and input[i + 1] == '=') {
-                    try appendToken(&tokens, .Equal, "==");
-                    i += 1;
-                } else {
-                    try appendToken(&tokens, .Assignment, "=");
-                }
-            },
-            '<' => try appendToken(&tokens, .Less, "<"),
-            '>' => try appendToken(&tokens, .Greater, ">"),
-            '!' => {
-                if (i + 1 < input.len and input[i + 1] == '=') {
-                    try appendToken(&tokens, .NotEqual, "!=");
-                    i += 1;
-                } else {
-                    std.debug.print("Invalid '!' usage at index {d}\n", .{i});
-                    return error.InvalidCharacter;
-                }
-            },
-            '.' => {
-                if (i + 1 < input.len and input[i + 1] == '*') {
-                    try appendToken(&tokens, .Dereference, ".*");
-                    i += 1;
-                } else {
-                    std.debug.print("Unexpected '.' at index {d}\n", .{i});
-                    return error.UnexpectedDot;
-                }
-            },
-            '(' => try appendToken(&tokens, .LParen, "("),
-            ')' => try appendToken(&tokens, .RParen, ")"),
-            '[' => try appendToken(&tokens, .LSquareBracket, "["),
-            ']' => try appendToken(&tokens, .RSquareBracket, "]"),
-            ',' => try appendToken(&tokens, .Comma, ","),
+            '{', '}', ':', '&', '+', '-', '*', '/', '%', '<', '>', '(', ')', '[', ']', ',' => try handleSingleCharToken(&tokens, c),
+            '@' => i = try handleAtCommand(&tokens, input, i),
+            '0'...'9' => i = try handleNumber(&tokens, input, i),
+            'a'...'z', 'A'...'Z', '_' => i = try handleIdentifier(&tokens, input, i),
+            '=' => i = try handleEquals(&tokens, input, i),
+            '!' => i = try handleNot(&tokens, input, i),
+            '.' => i = try handleDot(&tokens, input, i),
             '\n' => try appendToken(&tokens, .EOS, "\\n"),
-            ' ', '\t' => {
-                std.debug.print("Skipping whitespace at index {d}\n", .{i});
-            },
-            '"' => {
-                i += 1;
-                var escaped = false;
-                var string_builder = std.ArrayList(u8).init(arena_allocator);
-
-                while (i < input.len and (input[i] != '"' or escaped)) {
-                    if (escaped) {
-                        switch (input[i]) {
-                            'n' => try string_builder.append('\n'),
-                            't' => try string_builder.append('\t'),
-                            'r' => try string_builder.append('\r'),
-                            '\\' => try string_builder.append('\\'),
-                            '"' => try string_builder.append('"'),
-                            else => return error.InvalidEscapeSequence,
-                        }
-                        escaped = false;
-                    } else if (input[i] == '\\') {
-                        escaped = true;
-                    } else {
-                        try string_builder.append(input[i]);
-                    }
-                    i += 1;
-                }
-
-                if (i >= input.len) return error.UnterminatedString;
-                const string_literal = try string_builder.toOwnedSlice();
-                try appendToken(&tokens, .StringLiteral, string_literal);
-                std.debug.print("Parsed string literal: {s}\n", .{string_literal});
-            },
-            else => {
-                std.debug.print("Invalid character at index {d}: '{c}'\n", .{ i, c });
-                return error.InvalidCharacter;
-            },
+            ' ', '\t' => {},
+            '"' => i = try handleString(&tokens, input, i),
+            else => return error.InvalidCharacter,
         }
     }
 
     try appendToken(&tokens, .EOF, "");
-    std.debug.print("Lexer completed. Total tokens: {d}\n", .{tokens.items.len});
-    return tokens;
+    return LexerResult{ .tokens = try tokens.toOwnedSlice(), .allocator = allocator };
+}
+
+fn handleSingleCharToken(tokens: *std.ArrayList(TToken), c: u8) !void {
+    const token_type: EToken = switch (c) {
+        '{' => .LBrace,
+        '}' => .RBrace,
+        ':' => .Colon,
+        '&' => .Ampersand,
+        '+' => .Add,
+        '-' => .Sub,
+        '*' => .Mul,
+        '/' => .Div,
+        '%' => .Modulo,
+        '<' => .Less,
+        '>' => .Greater,
+        '(' => .LParen,
+        ')' => .RParen,
+        '[' => .LSquareBracket,
+        ']' => .RSquareBracket,
+        ',' => .Comma,
+        else => unreachable,
+    };
+    try appendToken(tokens, token_type, &[_]u8{c});
+}
+
+fn handleAtCommand(tokens: *std.ArrayList(TToken), input: []const u8, i: usize) !usize {
+    if (i + 1 >= input.len or !std.ascii.isAlphabetic(input[i + 1])) {
+        // Standalone '@'
+        try appendToken(tokens, .AtSign, "@");
+        return i;
+    }
+
+    const commands = [_]struct { name: []const u8, token: EToken }{
+        .{ .name = "@socket_create", .token = .CmdSocketCreate },
+        .{ .name = "@socket_bind", .token = .CmdSocketBind },
+        .{ .name = "@socket_listen", .token = .CmdSocketListen },
+        .{ .name = "@socket_accept", .token = .CmdSocketAccept },
+        .{ .name = "@socket_read", .token = .CmdSocketRead },
+        .{ .name = "@socket_write", .token = .CmdSocketWrite },
+        .{ .name = "@socket_close", .token = .CmdSocketClose },
+        .{ .name = "@print_int", .token = .CmdPrintInt },
+    };
+
+    for (commands) |cmd| {
+        if (std.mem.startsWith(u8, input[i..], cmd.name)) {
+            try appendToken(tokens, cmd.token, cmd.name);
+            return i + cmd.name.len - 1;
+        }
+    }
+
+    // Unknown '@' command
+    var end = i + 1;
+    while (end < input.len and (std.ascii.isAlphanumeric(input[end]) or input[end] == '_')) : (end += 1) {}
+    try appendToken(tokens, .UnknownAtCommand, input[i..end]);
+    return end - 1;
+}
+
+fn handleNumber(tokens: *std.ArrayList(TToken), input: []const u8, start: usize) !usize {
+    var i = start;
+    while (i < input.len and std.ascii.isDigit(input[i])) : (i += 1) {}
+    try appendToken(tokens, .Integer, input[start..i]);
+    return i - 1;
+}
+
+fn handleIdentifier(tokens: *std.ArrayList(TToken), input: []const u8, start: usize) !usize {
+    var i = start;
+    while (i < input.len and (std.ascii.isAlphanumeric(input[i]) or input[i] == '_')) : (i += 1) {}
+    const identifier = input[start..i];
+    const token_type: EToken = if (std.mem.eql(u8, identifier, "say"))
+        .VariableDeclaration
+    else if (std.mem.eql(u8, identifier, "if"))
+        .If
+    else if (std.mem.eql(u8, identifier, "while"))
+        .While
+    else if (std.mem.eql(u8, identifier, "u64") or std.mem.eql(u8, identifier, "u8"))
+        .TypeDeclaration
+    else
+        .SayIdentifier;
+    try appendToken(tokens, token_type, identifier);
+    return i - 1;
+}
+
+fn handleEquals(tokens: *std.ArrayList(TToken), input: []const u8, i: usize) !usize {
+    if (i + 1 < input.len and input[i + 1] == '=') {
+        try appendToken(tokens, .Equal, "==");
+        return i + 1;
+    } else {
+        try appendToken(tokens, .Assignment, "=");
+        return i;
+    }
+}
+
+fn handleNot(tokens: *std.ArrayList(TToken), input: []const u8, i: usize) !usize {
+    if (i + 1 < input.len and input[i + 1] == '=') {
+        try appendToken(tokens, .NotEqual, "!=");
+        return i + 1;
+    } else {
+        try appendToken(tokens, .Not, "!");
+        return i;
+    }
+}
+
+fn handleDot(tokens: *std.ArrayList(TToken), input: []const u8, i: usize) !usize {
+    if (i + 1 < input.len and input[i + 1] == '*') {
+        try appendToken(tokens, .Dereference, ".*");
+        return i + 1;
+    } else {
+        return error.UnexpectedDot;
+    }
+}
+
+fn handleString(tokens: *std.ArrayList(TToken), input: []const u8, start: usize) !usize {
+    var i = start + 1;
+    while (i < input.len and input[i] != '"') : (i += 1) {
+        if (input[i] == '\\' and i + 1 < input.len) {
+            i += 1;
+        }
+    }
+    if (i >= input.len) return error.UnterminatedString;
+    try appendToken(tokens, .StringLiteral, input[start + 1 .. i]);
+    return i;
 }
 
 fn appendToken(tokens: *std.ArrayList(TToken), token_type: EToken, value: []const u8) !void {
-    const copied_value = try tokens.allocator.dupe(u8, value);
-    errdefer tokens.allocator.free(copied_value);
-    try tokens.append(.{ .type = token_type, .value = copied_value });
-    std.debug.print("Appended token: {s} with value: {s}\n", .{ @tagName(token_type), value });
+    const duped_value = try tokens.allocator.dupe(u8, value);
+    errdefer tokens.allocator.free(duped_value);
+    try tokens.append(.{ .type = token_type, .value = duped_value });
 }

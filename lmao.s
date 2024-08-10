@@ -77,13 +77,12 @@ socket_create_end:    str x0, [x29, #-32]
     ; Socket bind
     ldr x0, [x29, #-32]
     mov x9, x0          // save socket fd to x9
-    mov x0, #8888
+    mov x0, #3001
     mov x10, x0         // save port to x10
     sub sp, sp, #16     // allocate 16 bytes on stack for sockaddr_in
     mov x1, #2          // AF_INET
     strh w1, [sp]       // store sin_family
-    ; rev w10, w10        // convert port to network byte order
-    mov w10, #0xb822
+    rev16 w10, w10        // convert port to network byte order
 
     strh w10, [sp, #2]  // store sin_port
     mov x11, #0         // INADDR_ANY
@@ -105,13 +104,6 @@ socket_create_end:    str x0, [x29, #-32]
     mov x0, x9          // socket fd
     mov x16, #106       // listen syscall
     svc #0x80
-    cmp x0, #0
-    b.ge socket_listen_ok
-    mov x1, x0          // save error code
-    mov x0, #1          // exit syscall
-    mov x16, #1
-    svc #0x80
-socket_listen_ok:
     mov x1, x0          // save result to x1
 .L0_loop:
     mov w0, #1
@@ -132,129 +124,225 @@ socket_listen_ok:
     mov x2, #0          // NULL for address length
     mov x16, #30        // accept syscall
     svc #0x80
-    cmp x0, #0
-    b.ge socket_accept_ok
-    mov x1, x0          // save error code
-    mov x0, #1          // exit syscall
-    mov x16, #1
-    svc #0x80
-socket_accept_ok:
     mov x1, x0          // save client socket fd to x1
     str x0, [x29, #-40]
 
     ; Say variable declaration
     mov w0, #72
-    strb w0, [x29, #-93]
+    strb w0, [x29, #-148]
     mov w0, #84
-    strb w0, [x29, #-92]
+    strb w0, [x29, #-147]
     mov w0, #84
-    strb w0, [x29, #-91]
+    strb w0, [x29, #-146]
     mov w0, #80
-    strb w0, [x29, #-90]
+    strb w0, [x29, #-145]
     mov w0, #47
-    strb w0, [x29, #-89]
+    strb w0, [x29, #-144]
     mov w0, #49
-    strb w0, [x29, #-88]
+    strb w0, [x29, #-143]
     mov w0, #46
-    strb w0, [x29, #-87]
+    strb w0, [x29, #-142]
     mov w0, #49
-    strb w0, [x29, #-86]
+    strb w0, [x29, #-141]
     mov w0, #32
-    strb w0, [x29, #-85]
+    strb w0, [x29, #-140]
     mov w0, #50
-    strb w0, [x29, #-84]
+    strb w0, [x29, #-139]
     mov w0, #48
-    strb w0, [x29, #-83]
+    strb w0, [x29, #-138]
     mov w0, #48
-    strb w0, [x29, #-82]
-    mov w0, #32
-    strb w0, [x29, #-81]
-    mov w0, #79
-    strb w0, [x29, #-80]
-    mov w0, #75
-    strb w0, [x29, #-79]
-    mov w0, #13
-    strb w0, [x29, #-78]
-    mov w0, #10
-    strb w0, [x29, #-77]
-    mov w0, #67
-    strb w0, [x29, #-76]
+    strb w0, [x29, #-137]
+    mov w0, #92
+    strb w0, [x29, #-136]
+    mov w0, #110
+    strb w0, [x29, #-135]
+    mov w0, #99
+    strb w0, [x29, #-134]
     mov w0, #111
-    strb w0, [x29, #-75]
+    strb w0, [x29, #-133]
     mov w0, #110
-    strb w0, [x29, #-74]
+    strb w0, [x29, #-132]
     mov w0, #116
-    strb w0, [x29, #-73]
+    strb w0, [x29, #-131]
     mov w0, #101
-    strb w0, [x29, #-72]
+    strb w0, [x29, #-130]
     mov w0, #110
-    strb w0, [x29, #-71]
+    strb w0, [x29, #-129]
     mov w0, #116
-    strb w0, [x29, #-70]
+    strb w0, [x29, #-128]
     mov w0, #45
-    strb w0, [x29, #-69]
-    mov w0, #84
-    strb w0, [x29, #-68]
+    strb w0, [x29, #-127]
+    mov w0, #116
+    strb w0, [x29, #-126]
     mov w0, #121
-    strb w0, [x29, #-67]
+    strb w0, [x29, #-125]
     mov w0, #112
-    strb w0, [x29, #-66]
+    strb w0, [x29, #-124]
     mov w0, #101
-    strb w0, [x29, #-65]
+    strb w0, [x29, #-123]
     mov w0, #58
-    strb w0, [x29, #-64]
+    strb w0, [x29, #-122]
     mov w0, #32
-    strb w0, [x29, #-63]
+    strb w0, [x29, #-121]
     mov w0, #116
-    strb w0, [x29, #-62]
+    strb w0, [x29, #-120]
     mov w0, #101
-    strb w0, [x29, #-61]
+    strb w0, [x29, #-119]
     mov w0, #120
-    strb w0, [x29, #-60]
+    strb w0, [x29, #-118]
     mov w0, #116
-    strb w0, [x29, #-59]
+    strb w0, [x29, #-117]
     mov w0, #47
-    strb w0, [x29, #-58]
-    mov w0, #112
-    strb w0, [x29, #-57]
+    strb w0, [x29, #-116]
+    mov w0, #104
+    strb w0, [x29, #-115]
+    mov w0, #116
+    strb w0, [x29, #-114]
+    mov w0, #109
+    strb w0, [x29, #-113]
     mov w0, #108
-    strb w0, [x29, #-56]
-    mov w0, #97
-    strb w0, [x29, #-55]
-    mov w0, #105
-    strb w0, [x29, #-54]
+    strb w0, [x29, #-112]
+    mov w0, #92
+    strb w0, [x29, #-111]
     mov w0, #110
-    strb w0, [x29, #-53]
-    mov w0, #13
-    strb w0, [x29, #-52]
-    mov w0, #10
-    strb w0, [x29, #-51]
-    mov w0, #67
-    strb w0, [x29, #-50]
+    strb w0, [x29, #-110]
+    mov w0, #99
+    strb w0, [x29, #-109]
     mov w0, #111
-    strb w0, [x29, #-49]
+    strb w0, [x29, #-108]
     mov w0, #110
+    strb w0, [x29, #-107]
+    mov w0, #116
+    strb w0, [x29, #-106]
+    mov w0, #101
+    strb w0, [x29, #-105]
+    mov w0, #110
+    strb w0, [x29, #-104]
+    mov w0, #116
+    strb w0, [x29, #-103]
+    mov w0, #45
+    strb w0, [x29, #-102]
+    mov w0, #108
+    strb w0, [x29, #-101]
+    mov w0, #101
+    strb w0, [x29, #-100]
+    mov w0, #110
+    strb w0, [x29, #-99]
+    mov w0, #103
+    strb w0, [x29, #-98]
+    mov w0, #116
+    strb w0, [x29, #-97]
+    mov w0, #104
+    strb w0, [x29, #-96]
+    mov w0, #58
+    strb w0, [x29, #-95]
+    mov w0, #32
+    strb w0, [x29, #-94]
+    mov w0, #52
+    strb w0, [x29, #-93]
+    mov w0, #56
+    strb w0, [x29, #-92]
+    mov w0, #92
+    strb w0, [x29, #-91]
+    mov w0, #110
+    strb w0, [x29, #-90]
+    mov w0, #92
+    strb w0, [x29, #-89]
+    mov w0, #110
+    strb w0, [x29, #-88]
+    mov w0, #60
+    strb w0, [x29, #-87]
+    mov w0, #116
+    strb w0, [x29, #-86]
+    mov w0, #105
+    strb w0, [x29, #-85]
+    mov w0, #116
+    strb w0, [x29, #-84]
+    mov w0, #108
+    strb w0, [x29, #-83]
+    mov w0, #101
+    strb w0, [x29, #-82]
+    mov w0, #62
+    strb w0, [x29, #-81]
+    mov w0, #71
+    strb w0, [x29, #-80]
+    mov w0, #97
+    strb w0, [x29, #-79]
+    mov w0, #114
+    strb w0, [x29, #-78]
+    mov w0, #98
+    strb w0, [x29, #-77]
+    mov w0, #97
+    strb w0, [x29, #-76]
+    mov w0, #103
+    strb w0, [x29, #-75]
+    mov w0, #101
+    strb w0, [x29, #-74]
+    mov w0, #60
+    strb w0, [x29, #-73]
+    mov w0, #47
+    strb w0, [x29, #-72]
+    mov w0, #116
+    strb w0, [x29, #-71]
+    mov w0, #105
+    strb w0, [x29, #-70]
+    mov w0, #116
+    strb w0, [x29, #-69]
+    mov w0, #108
+    strb w0, [x29, #-68]
+    mov w0, #101
+    strb w0, [x29, #-67]
+    mov w0, #62
+    strb w0, [x29, #-66]
+    mov w0, #60
+    strb w0, [x29, #-65]
+    mov w0, #98
+    strb w0, [x29, #-64]
+    mov w0, #111
+    strb w0, [x29, #-63]
+    mov w0, #100
+    strb w0, [x29, #-62]
+    mov w0, #121
+    strb w0, [x29, #-61]
+    mov w0, #62
+    strb w0, [x29, #-60]
+    mov w0, #60
+    strb w0, [x29, #-59]
+    mov w0, #98
+    strb w0, [x29, #-58]
+    mov w0, #62
+    strb w0, [x29, #-57]
+    mov w0, #119
+    strb w0, [x29, #-56]
+    mov w0, #101
+    strb w0, [x29, #-55]
+    mov w0, #32
+    strb w0, [x29, #-54]
+    mov w0, #98
+    strb w0, [x29, #-53]
+    mov w0, #97
+    strb w0, [x29, #-52]
+    mov w0, #108
+    strb w0, [x29, #-51]
+    mov w0, #108
+    strb w0, [x29, #-50]
+    mov w0, #60
+    strb w0, [x29, #-49]
+    mov w0, #47
     strb w0, [x29, #-48]
 
     ; Socket write
     ldr x0, [x29, #-40]
     mov x9, x0          // save socket fd to x9
-    add x0, x29, #-93
+    add x0, x29, #-148
     mov x10, x0         // save buffer address to x10
-    mov w0, #46
+    mov w0, #101
     mov x11, x0         // save length to x11
     mov x0, x9          // socket fd
     mov x1, x10         // buffer address
     mov x2, x11         // length
     mov x16, #4         // write syscall
     svc #0x80
-    cmp x0, #0
-    b.ge socket_write_ok
-    mov x1, x0          // save error code
-    mov x0, #1          // exit syscall
-    mov x16, #1
-    svc #0x80
-socket_write_ok:
     mov x1, x0          // save number of bytes written to x1
 
     ; Socket close
@@ -263,13 +351,6 @@ socket_write_ok:
     mov x0, x9          // socket fd
     mov x16, #6         // close syscall
     svc #0x80
-    cmp x0, #0
-    b.ge socket_close_ok
-    mov x1, x0          // save error code
-    mov x0, #1          // exit syscall
-    mov x16, #1
-    svc #0x80
-socket_close_ok:
     mov x1, x0          // save result to x1
     b .L0_loop
 .L0_end:

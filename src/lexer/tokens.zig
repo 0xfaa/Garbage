@@ -12,10 +12,21 @@ pub const EToken = enum {
     LParen,
     RParen,
 
-    // Builtin features
+    // Builtin primitives for debugging
     CmdPrintInt,
     CmdPrintChar,
     CmdPrintBuf,
+    UnknownAtCommand,
+    AtSign,
+
+    // Networking primitives
+    CmdSocketCreate,
+    CmdSocketBind,
+    CmdSocketListen,
+    CmdSocketAccept,
+    CmdSocketRead,
+    CmdSocketWrite,
+    CmdSocketClose,
 
     // End of statement
     EOS,
@@ -41,6 +52,7 @@ pub const EToken = enum {
     Less,
     Greater,
     NotEqual,
+    Not,
 
     // While loop
     While,
@@ -54,15 +66,6 @@ pub const EToken = enum {
     LSquareBracket,
     RSquareBracket,
     Comma,
-
-    // Networking primitives
-    CmdSocketCreate,
-    CmdSocketBind,
-    CmdSocketListen,
-    CmdSocketAccept,
-    CmdSocketRead,
-    CmdSocketWrite,
-    CmdSocketClose,
 
     // Strings
     StringLiteral,
