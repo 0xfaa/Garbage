@@ -364,6 +364,14 @@ socket_create_end:    str x0, [x29, #-32]
     mov x1, x0          // save result to x1
     b .L0_loop
 .L0_end:
+
+    ; Socket close
+    ldr x0, [x29, #-32]
+    mov x9, x0          // save socket fd to x9
+    mov x0, x9          // socket fd
+    mov x16, #6         // close syscall
+    svc #0x80
+    mov x1, x0          // save result to x1
     mov w0, #0
     bl _printInt
     add sp, sp, #32

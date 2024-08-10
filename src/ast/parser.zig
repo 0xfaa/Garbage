@@ -43,7 +43,6 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
                     return try self.parseArrayInitialization();
                 },
                 else => {
-                    std.debug.print("Unexpected token: {s}\n", .{@tagName(self.tokens[self.i.*].type)});
                     return error.UnexpectedToken;
                 },
             }
@@ -147,7 +146,6 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
         }
 
         fn parseArrayInitialization(self: *@This()) !*Node {
-            std.debug.print("Parsing array initialization\n", .{});
             if (self.tokens[self.i.*].type == .StringLiteral) {
                 const str_value = self.tokens[self.i.*].value;
                 self.i.* += 1;
@@ -181,23 +179,19 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
         }
 
         fn parseExpression(self: *@This()) anyerror!*Node {
-            std.debug.print("Parsing expression\n", .{});
             if (self.i.* >= self.tokens.len) {
                 return error.UnexpectedEndOfFile;
             }
 
             if (self.tokens[self.i.*].type == .CmdPrintInt) {
-                std.debug.print("Trying to parse CmdPrintInt from expression\n", .{});
                 return try self.parseCmdPrintInt() orelse return error.UnexpectedToken;
             }
 
             if (self.tokens[self.i.*].type == .CmdSocketCreate) {
-                std.debug.print("Trying to parse CmdSocketCreate from expression\n", .{});
                 return try self.parseSocketCreate();
             }
 
             if (self.tokens[self.i.*].type == .CmdSocketAccept) {
-                std.debug.print("Trying to parse CmdSocketAccept from expression\n", .{});
                 return try self.parseSocketAccept();
             }
 
@@ -226,7 +220,6 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
         }
 
         fn parseCmdPrintChar(self: *@This()) anyerror!?*Node {
-            std.debug.print("Parsing CmdPrintChar\n", .{});
             if (self.tokens[self.i.*].type == .CmdPrintChar) {
                 self.i.* += 1;
                 const expression = try self.parseExpression();
@@ -236,7 +229,6 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
         }
 
         fn parseCmdPrintInt(self: *@This()) anyerror!?*Node {
-            std.debug.print("Parsing CmdPrintInt\n", .{});
             if (self.tokens[self.i.*].type == .CmdPrintInt) {
                 self.i.* += 1;
                 const expression = try self.parseExpression();
@@ -246,7 +238,6 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
         }
 
         fn parseCmdPrintBuf(self: *@This()) anyerror!?*Node {
-            std.debug.print("Parsing CmdPrintBuf\n", .{});
             if (self.tokens[self.i.*].type == .CmdPrintBuf) {
                 self.i.* += 1;
 
@@ -337,7 +328,6 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
         }
 
         fn parseVariableDeclaration(self: *@This()) !*Node {
-            std.debug.print("Parsing variable declaration\n", .{});
             if (self.tokens[self.i.*].type != .VariableDeclaration) {
                 return error.ExpectedVarDeclaration;
             }
@@ -370,8 +360,6 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
                 try self.parseArrayInitialization()
             else
                 try self.parseExpression();
-
-            std.debug.print("Parsed expression for variable declaration\n", .{});
 
             return Node.createVariableDecl(self.allocator, .SayDeclaration, expression, null, null, varName, typeStr);
         }
@@ -471,7 +459,6 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
         }
 
         fn parseSocketCreate(self: *@This()) !*Node {
-            std.debug.print("Parsing CmdSocketCreate\n", .{});
             self.i.* += 1; // Consume the @socket_create token
             return Node.create(self.allocator, .SocketCreate, null, null, null, null);
         }
@@ -558,7 +545,6 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
             errdefer program.deinit(self.allocator);
 
             while (self.i.* < self.tokens.len and self.tokens[self.i.*].type != .EOF) {
-                std.debug.print("Parsing statement at index {}: {s}\n", .{ self.i.*, @tagName(self.tokens[self.i.*].type) });
                 // Skip over empty lines
                 while (self.i.* < self.tokens.len and self.tokens[self.i.*].type == .EOS) {
                     self.i.* += 1;
@@ -570,7 +556,6 @@ pub fn parse(tokens: []const TToken, allocator: *const std.mem.Allocator) !*Prog
                 }
 
                 const stmt = try self.parseStatement();
-                std.debug.print("Parsed statement: {s}\n", .{@tagName(stmt.type)});
                 errdefer self.allocator.destroy(stmt);
                 try program.statements.append(stmt);
 
