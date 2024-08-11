@@ -362,6 +362,29 @@ socket_create_end:    str x0, [x29, #-32]
     mov x16, #6         // close syscall
     svc #0x80
     mov x1, x0          // save result to x1
+
+    ; Say variable declaration
+    mov w0, #104
+    strb w0, [x29, #-162]
+    mov w0, #105
+    strb w0, [x29, #-161]
+    mov w0, #10
+    strb w0, [x29, #-160]
+    add x1, x29, #-162
+    mov w0, #1
+    add x1, x1, x0
+    mov w0, #42
+    strb w0, [x1]
+    add x0, x29, #-162
+    mov x1, x0
+    mov w0, #3
+    mov x2, x0
+    mov x3, #3
+    cmp x2, x3
+    csel x2, x2, x3, ls
+    mov x0, #1     ; stdout file descriptor
+    mov x16, #4    ; write syscall number
+    svc 0
     b .L0_loop
 .L0_end:
 

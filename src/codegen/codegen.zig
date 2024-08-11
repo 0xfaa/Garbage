@@ -100,10 +100,11 @@ const SymbolTable = struct {
 };
 
 pub fn codegen_init(program: *Program, writer: anytype) !void {
+    std.debug.print("Starting codegen_init\n", .{});
     var symbol_table = SymbolTable.init(program.statements.allocator);
     defer symbol_table.deinit();
 
-    // Write the base assembly code
+    std.debug.print("Writing base assembly code\n", .{});
     try writer.writeAll(
         \\.global _main
         \\.align 2
@@ -152,30 +153,43 @@ pub fn codegen_init(program: *Program, writer: anytype) !void {
     try writer.writeAll("    mov x29, sp\n");
 
     // First pass: count variables
+    std.debug.print("First pass: counting variables\n", .{});
     for (program.statements.items) |stmt| {
+        std.debug.print("Processing statement {s}\n", .{@tagName(stmt.type)});
         if (stmt.type == .SayDeclaration) {
-            try symbol_table.addVariable(stmt.value.variable_decl.name, stmt.value.variable_decl.type);
+            if (stmt.value.variable_decl.name.len > 0) {
+                std.debug.print("Adding variable: {s}\n", .{stmt.value.variable_decl.name});
+                try symbol_table.addVariable(stmt.value.variable_decl.name, stmt.value.variable_decl.type);
+            } else {
+                std.debug.print("SayDeclaration with empty name\n", .{});
+            }
+        } else {
+            std.debug.print("Non-variable declaration statement encountered\n", .{});
         }
     }
 
     // Align stack size to 16 bytes
     const stack_size = (symbol_table.current_offset + 15) & ~@as(usize, 15);
+    std.debug.print("Stack size: {}\n", .{stack_size});
     if (stack_size > 16) {
         try writer.print("    sub sp, sp, #{}\n", .{stack_size});
     }
 
     // Second pass: generate code
+    std.debug.print("Second pass: generating code\n", .{});
     for (program.statements.items) |stmt| {
+        std.debug.print("Generating code for statement: {any}\n", .{stmt});
         try codegen(stmt, writer, &symbol_table, null);
     }
 
     // Epilogue
+    std.debug.print("Writing epilogue\n", .{});
     if (stack_size > 16) {
         try writer.print("    add sp, sp, #{d}\n", .{stack_size - 16});
     }
     try writer.writeAll("    ldp x29, x30, [sp], #16\n");
 
-    // Write the termination code
+    std.debug.print("Writing termination code\n", .{});
     try writer.writeAll(
         \\
         \\_terminate:
@@ -184,11 +198,14 @@ pub fn codegen_init(program: *Program, writer: anytype) !void {
         \\    svc 0       // Trigger syscall
         \\
     );
+    std.debug.print("Finished codegen_init\n", .{});
 }
 
 fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable, parent_var_name: ?[]const u8) !void {
+    std.debug.print("codegen: Processing node of type: {s}\n", .{@tagName(node.type)});
     switch (node.type) {
         .IntegerLiteral => {
+            std.debug.print("codegen: IntegerLiteral value: {}\n", .{node.value.integer});
             if (node.value.integer > 255) {
                 try writer.print("    mov x0, #{}\n", .{node.value.integer});
             } else {
@@ -196,6 +213,7 @@ fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable, parent_var_
             }
         },
         .NodeAdd, .NodeSub, .NodeMul, .NodeDiv, .NodeModulo => {
+            std.debug.print("codegen: Binary operation\n", .{});
             if (node.left) |left| try codegen(left, writer, symbol_table, null);
 
             if (node.left.?.type == .Variable) {
@@ -433,7 +451,7 @@ fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable, parent_var_
             // Generate code for the loop operation (if present)
             if (loop_operation) |operation| {
                 std.debug.print("LOOP OPER:\n", .{});
-                try operation.print(0, "OPERATION");
+                operation.print(0, "OPERATION");
                 try codegen(operation, writer, symbol_table, null);
             }
 
@@ -693,8 +711,13 @@ fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable, parent_var_
             try writer.writeAll("\n    mov x1, x0          // save result to x1\n");
         },
         .StringLiteral => {
+            std.debug.print("codegen: StringLiteral\n", .{});
             const str_value = node.value.str;
-            const var_name = parent_var_name orelse return error.MissingParentVariableName;
+            const var_name = parent_var_name orelse {
+                std.debug.print("codegen: Error - Missing parent variable name for StringLiteral\n", .{});
+                return error.MissingParentVariableName;
+            };
+            std.debug.print("codegen: StringLiteral parent variable: {s}\n", .{var_name});
             const offset = symbol_table.getVariableOffset(var_name) orelse return error.UndefinedVariable;
             const var_type = symbol_table.getVariableType(var_name) orelse return error.UndefinedVariable;
 
@@ -717,6 +740,10 @@ fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable, parent_var_
                 try writer.print("    strb w0, [x29, #-{}]\n", .{null_terminator_offset});
             }
         },
-        else => return error.UnsupportedNodeType,
+        else => {
+            std.debug.print("codegen: Unsupported node type: {s}\n", .{@tagName(node.type)});
+            return error.UnsupportedNodeType;
+        },
     }
+    std.debug.print("codegen: Finished processing node of type: {s}\n", .{@tagName(node.type)});
 }

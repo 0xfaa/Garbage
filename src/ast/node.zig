@@ -1,7 +1,7 @@
 const std = @import("std");
 const VarType = @import("../codegen/codegen.zig").VarType;
 
-pub const ENode = enum {
+pub const ENode = enum(u32) {
     IntegerLiteral,
     NodeAdd,
     NodeMul,
@@ -74,7 +74,7 @@ pub const Node = struct {
     extra: ?*Node, // Field for loop operation
     value: NodeValue,
 
-    pub fn create(allocator: *const std.mem.Allocator, node_type: ENode, left: ?*Node, right: ?*Node, extra: ?*Node, value: anytype) !*Node {
+    pub fn create(allocator: std.mem.Allocator, node_type: ENode, left: ?*Node, right: ?*Node, extra: ?*Node, value: anytype) !*Node {
         const node = try allocator.create(Node);
         node.* = .{
             .type = node_type,
@@ -92,41 +92,54 @@ pub const Node = struct {
         return node;
     }
 
-    pub fn createVariableDecl(allocator: *const std.mem.Allocator, node_type: ENode, left: ?*Node, right: ?*Node, extra: ?*Node, name: []const u8, var_type: []const u8) !*Node {
+    pub fn createVariableDecl(allocator: std.mem.Allocator, node_type: ENode, left: ?*Node, right: ?*Node, extra: ?*Node, name: []const u8, var_type: []const u8) !*Node {
         const node = try allocator.create(Node);
-        const name_copy = try allocator.dupe(u8, name);
-        const type_copy = try allocator.dupe(u8, var_type);
         node.* = .{
             .type = node_type,
             .left = left,
             .right = right,
             .extra = extra,
-            .value = .{ .variable_decl = .{ .name = name_copy, .type = type_copy } },
+            .value = .{
+                .variable_decl = .{
+                    .name = try allocator.dupe(u8, name),
+                    .type = try allocator.dupe(u8, var_type),
+                },
+            },
         };
         return node;
     }
 
-    pub fn deinit(self: *Node, allocator: *const std.mem.Allocator) void {
-        if (self.left) |left| left.deinit(allocator);
-        if (self.right) |right| right.deinit(allocator);
-        if (self.extra) |extra| extra.deinit(allocator);
+    pub fn deinit(self: *Node, allocator: std.mem.Allocator) void {
+        if (self.left) |left| {
+            left.deinit(allocator);
+            allocator.destroy(left);
+        }
+        if (self.right) |right| {
+            right.deinit(allocator);
+            allocator.destroy(right);
+        }
+        if (self.extra) |extra| {
+            extra.deinit(allocator);
+            allocator.destroy(extra);
+        }
         switch (self.value) {
+            .str => |s| allocator.free(s),
             .nodes => |nodes| {
                 for (nodes) |node| {
                     node.deinit(allocator);
+                    allocator.destroy(node);
                 }
                 allocator.free(nodes);
             },
-            .variable_decl => |var_decl| {
-                allocator.free(var_decl.name);
-                allocator.free(var_decl.type);
+            .variable_decl => |decl| {
+                allocator.free(decl.name);
+                allocator.free(decl.type);
             },
             else => {},
         }
-        allocator.destroy(self);
     }
 
-    pub fn print(self: *@This(), pad: i64, modif: []const u8) !void {
+    pub fn print(self: *const @This(), pad: i64, modif: []const u8) void {
         var i: i64 = 0;
         while (i < pad) : (i += 1) {
             std.debug.print(" ", .{});
@@ -137,21 +150,25 @@ pub const Node = struct {
         switch (self.value) {
             .integer => |int| std.debug.print(" = {d}\n", .{int}),
             .str => |str| std.debug.print(" = {s}\n", .{str}),
-            .nodes => |n| for (n) |node| {
+            .nodes => |n| {
                 std.debug.print("\n", .{});
-                try node.print(pad + 1, modif);
+                for (n) |node| {
+                    node.print(pad + 1, modif);
+                }
             },
-            .variable_decl => |decl| std.debug.print(" = {s}: {s}\n", .{ decl.name, decl.type }),
+            .variable_decl => {
+                std.debug.print(" = name: type\n", .{});
+            },
         }
 
         if (self.left) |left| {
-            try left.print(pad + 1, "l");
+            left.print(pad + 1, "l");
         }
         if (self.right) |right| {
-            try right.print(pad + 1, "r");
+            right.print(pad + 1, "r");
         }
         if (self.extra) |extra| {
-            try extra.print(pad + 1, "e");
+            extra.print(pad + 1, "e");
         }
     }
 };

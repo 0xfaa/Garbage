@@ -9,13 +9,13 @@ const ENode = @import("ast/node.zig").ENode;
 fn testParse(input: []const u8, expected: []const ENode) !void {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
-    const allocator = &arena.allocator();
+    const allocator = arena.allocator();
 
-    var lexer_result = try lexer(input, allocator.*);
+    var lexer_result = try lexer(input, allocator);
     defer lexer_result.deinit();
 
     var program = try parse(lexer_result.tokens, allocator);
-    defer program.deinit(allocator);
+    defer program.deinit();
 
     try testing.expectEqual(expected.len, program.statements.items.len);
 
@@ -79,6 +79,10 @@ test "Parse while loop" {
 
 test "Parse array initialization" {
     try testParse("say arr: [5]u8 = {1, 2, 3, 4, 5}", &[_]ENode{.SayDeclaration});
+}
+
+test "Parse array string initialization" {
+    try testParse("say arr: [5]u8 = \"hello\"", &[_]ENode{.SayDeclaration});
 }
 
 test "Parse socket operations" {

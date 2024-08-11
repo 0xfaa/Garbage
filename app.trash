@@ -7,6 +7,10 @@ while 1 > 0 {
     say response: [106]u8 = "HTTP/1.1 200\nContent-Type: text/html\nContent-Length: 49\n\n<title>Garbage</title><body><b>we ball</b></body>"
     @socket_write client_socket, response, 111
     @socket_close client_socket
+
+    say a: [3]u8 = "hi\n"
+    a[1] = 42
+    @print_buf a, 3
 }
 
 @socket_close server_socket
