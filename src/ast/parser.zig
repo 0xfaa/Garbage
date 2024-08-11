@@ -20,6 +20,9 @@ const ParseError = error{
     OutOfMemory,
     InvalidIntegerLiteral,
     IntegerOverflow,
+    InvalidArgumentCount,
+    UnexpectedEndOfInput,
+    ExpectedCommaOrRParen,
 };
 
 pub fn parse(tokens: []const TToken, allocator: std.mem.Allocator) !*Program {
@@ -328,32 +331,29 @@ const Parser = struct {
         self.advance();
 
         switch (token.type) {
-            .CmdPrintInt, .CmdPrintChar => {
-                const arg = try self.parseExpression();
+            .CmdPrintInt, .CmdPrintChar, .CmdPrintBuf => {
+                try self.expectToken(.LParen);
+                const args = try self.parseArgumentList();
+                try self.expectToken(.RParen);
+
                 const node_type = switch (token.type) {
                     .CmdPrintInt => ENode.CmdPrintInt,
                     .CmdPrintChar => ENode.CmdPrintChar,
+                    .CmdPrintBuf => ENode.CmdPrintBuf,
                     else => unreachable,
                 };
-                return try Node.create(self.allocator, node_type, arg, null, null, token.value);
-            },
-            .CmdPrintBuf => {
-                // Parse the first argument (pointer)
-                const pointer_expr = try self.parseExpression();
 
-                // Expect a comma
-                if (self.peek()) |next_token| {
-                    if (next_token.type != .Comma) return ParseError.ExpectedComma;
-                    self.advance();
-                } else {
-                    return ParseError.ExpectedComma;
+                if (node_type == .CmdPrintBuf and args.len != 2) {
+                    return ParseError.InvalidArgumentCount;
+                } else if (node_type != .CmdPrintBuf and args.len != 1) {
+                    return ParseError.InvalidArgumentCount;
                 }
 
-                // Parse the second argument (number of chars)
-                const count_expr = try self.parseExpression();
-
-                // Create a new node for CmdPrintBuf
-                return try Node.create(self.allocator, .CmdPrintBuf, pointer_expr, count_expr, null, token.value);
+                if (node_type == .CmdPrintBuf) {
+                    return try Node.create(self.allocator, node_type, args[0], args[1], null, token.value);
+                } else {
+                    return try Node.create(self.allocator, node_type, args[0], null, null, token.value);
+                }
             },
             else => return ParseError.UnexpectedToken,
         }
@@ -363,6 +363,7 @@ const Parser = struct {
         const token = self.peek() orelse return ParseError.UnexpectedToken;
         self.advance();
         std.debug.print("parseSocketOperation: Parsing {s}\n", .{@tagName(token.type)});
+
         const node_type = switch (token.type) {
             .CmdSocketCreate => ENode.SocketCreate,
             .CmdSocketBind => ENode.SocketBind,
@@ -374,34 +375,62 @@ const Parser = struct {
             else => unreachable,
         };
 
-        var left: ?*Node = null;
-        var right: ?*Node = null;
-        var extra: ?*Node = null;
+        try self.expectToken(.LParen);
+        const args = try self.parseArgumentList();
+        try self.expectToken(.RParen);
 
-        if (node_type != .SocketCreate) {
-            left = try self.parseExpression();
-            if (node_type != .SocketAccept and node_type != .SocketClose) {
-                if (self.peek()) |next_token| {
-                    if (next_token.type != .Comma) return ParseError.ExpectedComma;
-                    self.advance();
-                } else {
-                    return ParseError.ExpectedComma;
-                }
-                right = try self.parseExpression();
-            }
+        switch (node_type) {
+            .SocketCreate => {
+                if (args.len != 0) return ParseError.InvalidArgumentCount;
+                return try Node.create(self.allocator, node_type, null, null, null, @as(i64, 0));
+            },
+            .SocketAccept, .SocketClose => {
+                if (args.len != 1) return ParseError.InvalidArgumentCount;
+                return try Node.create(self.allocator, node_type, args[0], null, null, @as(i64, 0));
+            },
+            .SocketBind, .SocketListen => {
+                if (args.len != 2) return ParseError.InvalidArgumentCount;
+                return try Node.create(self.allocator, node_type, args[0], args[1], null, @as(i64, 0));
+            },
+            .SocketRead, .SocketWrite => {
+                if (args.len != 3) return ParseError.InvalidArgumentCount;
+                return try Node.create(self.allocator, node_type, args[0], args[1], args[2], @as(i64, 0));
+            },
+            else => unreachable,
+        }
+    }
+
+    fn parseArgumentList(self: *Parser) ParseError![]const *Node {
+        var args = std.ArrayList(*Node).init(self.allocator);
+        errdefer {
+            for (args.items) |arg| arg.deinit(self.allocator);
+            args.deinit();
         }
 
-        if (node_type == .SocketRead or node_type == .SocketWrite) {
-            if (self.peek()) |next_token| {
-                if (next_token.type != .Comma) return ParseError.ExpectedComma;
-                self.advance();
+        while (true) {
+            if (self.peek()) |token| {
+                if (token.type == .RParen) break;
             } else {
-                return ParseError.ExpectedComma;
+                return ParseError.UnexpectedEndOfInput;
             }
-            extra = try self.parseExpression();
+
+            const arg = try self.parseExpression();
+            try args.append(arg);
+
+            if (self.peek()) |token| {
+                if (token.type == .Comma) {
+                    self.advance();
+                } else if (token.type == .RParen) {
+                    break;
+                } else {
+                    return ParseError.ExpectedCommaOrRParen;
+                }
+            } else {
+                return ParseError.UnexpectedEndOfInput;
+            }
         }
 
-        return try Node.create(self.allocator, node_type, left, right, extra, @as(i64, 0));
+        return args.toOwnedSlice();
     }
 
     fn parseArrayInitialization(self: *Parser) ParseError!*Node {
@@ -497,6 +526,14 @@ const Parser = struct {
             .EOF => {},
             else => return ParseError.ExpectedEndOfStatement,
         }
+    }
+
+    fn expectToken(self: *Parser, expected: EToken) ParseError!void {
+        const token = self.peek() orelse return ParseError.UnexpectedEndOfInput;
+        if (token.type != expected) {
+            return ParseError.UnexpectedToken;
+        }
+        self.advance();
     }
 };
 

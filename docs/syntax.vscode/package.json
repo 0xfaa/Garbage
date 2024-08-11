@@ -1,0 +1,38 @@
+{
+  "name": "garbage-syntax",
+  "version": "0.0.1",
+  "description": "Syntax highlighting for Garbage language",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "contributes": {
+    "languages": [
+      {
+        "id": "garbage",
+        "aliases": [
+          "Garbage",
+          "garbage"
+        ],
+        "extensions": [
+          ".trash"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "garbage",
+        "scopeName": "source.garbage",
+        "path": "./garbage.tmLanguage.json"
+      }
+    ]
+  },
+  "publisher": "0x466161",
+  "engines": {
+    "vscode": "^1.40.0"
+  },
+  "icon": "./logo.png"
+}
