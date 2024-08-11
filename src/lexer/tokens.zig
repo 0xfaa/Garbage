@@ -48,11 +48,14 @@ pub const EToken = enum {
     RBrace,
 
     // Conditionals
-    Equal,
     Less,
     Greater,
+    Equal,
     NotEqual,
+    GreaterEqual,
+    LessEqual,
     Not,
+    LogicalAnd,
 
     // While loop
     While,

@@ -12,11 +12,6 @@ pub const Program = struct {
     }
 
     pub fn deinit(self: *Program) void {
-        // for (self.statements.items) |stmt| {
-        //     stmt.deinit(allocator);
-        // }
-        // self.statements.deinit();
-        // allocator.destroy(self);
         self.arena.deinit();
     }
 

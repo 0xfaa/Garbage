@@ -109,224 +109,324 @@ socket_create_end:    str x0, [x29, #-32]
     ; Say variable declaration
 
     ; Say variable declaration
+    mov x0, #1024
+    mov x8, #-1064
+    str x0, [x29, x8]
+
+    ; Say variable declaration
     mov w0, #72
-    strb w0, [x29, #-1169]
+    mov x8, #-1173
+    strb w0, [x29, x8]
     mov w0, #84
-    strb w0, [x29, #-1168]
+    mov x8, #-1172
+    strb w0, [x29, x8]
     mov w0, #84
-    strb w0, [x29, #-1167]
+    mov x8, #-1171
+    strb w0, [x29, x8]
     mov w0, #80
-    strb w0, [x29, #-1166]
+    mov x8, #-1170
+    strb w0, [x29, x8]
     mov w0, #47
-    strb w0, [x29, #-1165]
+    mov x8, #-1169
+    strb w0, [x29, x8]
     mov w0, #49
-    strb w0, [x29, #-1164]
+    mov x8, #-1168
+    strb w0, [x29, x8]
     mov w0, #46
-    strb w0, [x29, #-1163]
+    mov x8, #-1167
+    strb w0, [x29, x8]
     mov w0, #49
-    strb w0, [x29, #-1162]
+    mov x8, #-1166
+    strb w0, [x29, x8]
     mov w0, #32
-    strb w0, [x29, #-1161]
+    mov x8, #-1165
+    strb w0, [x29, x8]
     mov w0, #50
-    strb w0, [x29, #-1160]
+    mov x8, #-1164
+    strb w0, [x29, x8]
     mov w0, #48
-    strb w0, [x29, #-1159]
+    mov x8, #-1163
+    strb w0, [x29, x8]
     mov w0, #48
-    strb w0, [x29, #-1158]
+    mov x8, #-1162
+    strb w0, [x29, x8]
     mov w0, #10
-    strb w0, [x29, #-1157]
+    mov x8, #-1161
+    strb w0, [x29, x8]
     mov w0, #67
-    strb w0, [x29, #-1156]
+    mov x8, #-1160
+    strb w0, [x29, x8]
     mov w0, #111
-    strb w0, [x29, #-1155]
+    mov x8, #-1159
+    strb w0, [x29, x8]
     mov w0, #110
-    strb w0, [x29, #-1154]
+    mov x8, #-1158
+    strb w0, [x29, x8]
     mov w0, #116
-    strb w0, [x29, #-1153]
+    mov x8, #-1157
+    strb w0, [x29, x8]
     mov w0, #101
-    strb w0, [x29, #-1152]
+    mov x8, #-1156
+    strb w0, [x29, x8]
     mov w0, #110
-    strb w0, [x29, #-1151]
+    mov x8, #-1155
+    strb w0, [x29, x8]
     mov w0, #116
-    strb w0, [x29, #-1150]
+    mov x8, #-1154
+    strb w0, [x29, x8]
     mov w0, #45
-    strb w0, [x29, #-1149]
+    mov x8, #-1153
+    strb w0, [x29, x8]
     mov w0, #84
-    strb w0, [x29, #-1148]
+    mov x8, #-1152
+    strb w0, [x29, x8]
     mov w0, #121
-    strb w0, [x29, #-1147]
+    mov x8, #-1151
+    strb w0, [x29, x8]
     mov w0, #112
-    strb w0, [x29, #-1146]
+    mov x8, #-1150
+    strb w0, [x29, x8]
     mov w0, #101
-    strb w0, [x29, #-1145]
+    mov x8, #-1149
+    strb w0, [x29, x8]
     mov w0, #58
-    strb w0, [x29, #-1144]
+    mov x8, #-1148
+    strb w0, [x29, x8]
     mov w0, #32
-    strb w0, [x29, #-1143]
+    mov x8, #-1147
+    strb w0, [x29, x8]
     mov w0, #116
-    strb w0, [x29, #-1142]
+    mov x8, #-1146
+    strb w0, [x29, x8]
     mov w0, #101
-    strb w0, [x29, #-1141]
+    mov x8, #-1145
+    strb w0, [x29, x8]
     mov w0, #120
-    strb w0, [x29, #-1140]
+    mov x8, #-1144
+    strb w0, [x29, x8]
     mov w0, #116
-    strb w0, [x29, #-1139]
+    mov x8, #-1143
+    strb w0, [x29, x8]
     mov w0, #47
-    strb w0, [x29, #-1138]
+    mov x8, #-1142
+    strb w0, [x29, x8]
     mov w0, #104
-    strb w0, [x29, #-1137]
+    mov x8, #-1141
+    strb w0, [x29, x8]
     mov w0, #116
-    strb w0, [x29, #-1136]
+    mov x8, #-1140
+    strb w0, [x29, x8]
     mov w0, #109
-    strb w0, [x29, #-1135]
+    mov x8, #-1139
+    strb w0, [x29, x8]
     mov w0, #108
-    strb w0, [x29, #-1134]
+    mov x8, #-1138
+    strb w0, [x29, x8]
     mov w0, #10
-    strb w0, [x29, #-1133]
+    mov x8, #-1137
+    strb w0, [x29, x8]
     mov w0, #67
-    strb w0, [x29, #-1132]
+    mov x8, #-1136
+    strb w0, [x29, x8]
     mov w0, #111
-    strb w0, [x29, #-1131]
+    mov x8, #-1135
+    strb w0, [x29, x8]
     mov w0, #110
-    strb w0, [x29, #-1130]
+    mov x8, #-1134
+    strb w0, [x29, x8]
     mov w0, #116
-    strb w0, [x29, #-1129]
+    mov x8, #-1133
+    strb w0, [x29, x8]
     mov w0, #101
-    strb w0, [x29, #-1128]
+    mov x8, #-1132
+    strb w0, [x29, x8]
     mov w0, #110
-    strb w0, [x29, #-1127]
+    mov x8, #-1131
+    strb w0, [x29, x8]
     mov w0, #116
-    strb w0, [x29, #-1126]
+    mov x8, #-1130
+    strb w0, [x29, x8]
     mov w0, #45
-    strb w0, [x29, #-1125]
+    mov x8, #-1129
+    strb w0, [x29, x8]
     mov w0, #76
-    strb w0, [x29, #-1124]
+    mov x8, #-1128
+    strb w0, [x29, x8]
     mov w0, #101
-    strb w0, [x29, #-1123]
+    mov x8, #-1127
+    strb w0, [x29, x8]
     mov w0, #110
-    strb w0, [x29, #-1122]
+    mov x8, #-1126
+    strb w0, [x29, x8]
     mov w0, #103
-    strb w0, [x29, #-1121]
+    mov x8, #-1125
+    strb w0, [x29, x8]
     mov w0, #116
-    strb w0, [x29, #-1120]
+    mov x8, #-1124
+    strb w0, [x29, x8]
     mov w0, #104
-    strb w0, [x29, #-1119]
+    mov x8, #-1123
+    strb w0, [x29, x8]
     mov w0, #58
-    strb w0, [x29, #-1118]
+    mov x8, #-1122
+    strb w0, [x29, x8]
     mov w0, #32
-    strb w0, [x29, #-1117]
+    mov x8, #-1121
+    strb w0, [x29, x8]
     mov w0, #52
-    strb w0, [x29, #-1116]
-    mov w0, #57
-    strb w0, [x29, #-1115]
+    mov x8, #-1120
+    strb w0, [x29, x8]
+    mov w0, #53
+    mov x8, #-1119
+    strb w0, [x29, x8]
     mov w0, #10
-    strb w0, [x29, #-1114]
+    mov x8, #-1118
+    strb w0, [x29, x8]
     mov w0, #10
-    strb w0, [x29, #-1113]
+    mov x8, #-1117
+    strb w0, [x29, x8]
     mov w0, #60
-    strb w0, [x29, #-1112]
+    mov x8, #-1116
+    strb w0, [x29, x8]
     mov w0, #116
-    strb w0, [x29, #-1111]
+    mov x8, #-1115
+    strb w0, [x29, x8]
     mov w0, #105
-    strb w0, [x29, #-1110]
+    mov x8, #-1114
+    strb w0, [x29, x8]
     mov w0, #116
-    strb w0, [x29, #-1109]
+    mov x8, #-1113
+    strb w0, [x29, x8]
     mov w0, #108
-    strb w0, [x29, #-1108]
+    mov x8, #-1112
+    strb w0, [x29, x8]
     mov w0, #101
-    strb w0, [x29, #-1107]
+    mov x8, #-1111
+    strb w0, [x29, x8]
     mov w0, #62
-    strb w0, [x29, #-1106]
+    mov x8, #-1110
+    strb w0, [x29, x8]
     mov w0, #71
-    strb w0, [x29, #-1105]
+    mov x8, #-1109
+    strb w0, [x29, x8]
     mov w0, #97
-    strb w0, [x29, #-1104]
+    mov x8, #-1108
+    strb w0, [x29, x8]
     mov w0, #114
-    strb w0, [x29, #-1103]
+    mov x8, #-1107
+    strb w0, [x29, x8]
     mov w0, #98
-    strb w0, [x29, #-1102]
+    mov x8, #-1106
+    strb w0, [x29, x8]
     mov w0, #97
-    strb w0, [x29, #-1101]
+    mov x8, #-1105
+    strb w0, [x29, x8]
     mov w0, #103
-    strb w0, [x29, #-1100]
+    mov x8, #-1104
+    strb w0, [x29, x8]
     mov w0, #101
-    strb w0, [x29, #-1099]
+    mov x8, #-1103
+    strb w0, [x29, x8]
     mov w0, #60
-    strb w0, [x29, #-1098]
+    mov x8, #-1102
+    strb w0, [x29, x8]
     mov w0, #47
-    strb w0, [x29, #-1097]
+    mov x8, #-1101
+    strb w0, [x29, x8]
     mov w0, #116
-    strb w0, [x29, #-1096]
+    mov x8, #-1100
+    strb w0, [x29, x8]
     mov w0, #105
-    strb w0, [x29, #-1095]
+    mov x8, #-1099
+    strb w0, [x29, x8]
     mov w0, #116
-    strb w0, [x29, #-1094]
+    mov x8, #-1098
+    strb w0, [x29, x8]
     mov w0, #108
-    strb w0, [x29, #-1093]
+    mov x8, #-1097
+    strb w0, [x29, x8]
     mov w0, #101
-    strb w0, [x29, #-1092]
+    mov x8, #-1096
+    strb w0, [x29, x8]
     mov w0, #62
-    strb w0, [x29, #-1091]
+    mov x8, #-1095
+    strb w0, [x29, x8]
     mov w0, #60
-    strb w0, [x29, #-1090]
+    mov x8, #-1094
+    strb w0, [x29, x8]
     mov w0, #98
-    strb w0, [x29, #-1089]
+    mov x8, #-1093
+    strb w0, [x29, x8]
     mov w0, #111
-    strb w0, [x29, #-1088]
+    mov x8, #-1092
+    strb w0, [x29, x8]
     mov w0, #100
-    strb w0, [x29, #-1087]
+    mov x8, #-1091
+    strb w0, [x29, x8]
     mov w0, #121
-    strb w0, [x29, #-1086]
+    mov x8, #-1090
+    strb w0, [x29, x8]
     mov w0, #62
-    strb w0, [x29, #-1085]
+    mov x8, #-1089
+    strb w0, [x29, x8]
     mov w0, #60
-    strb w0, [x29, #-1084]
+    mov x8, #-1088
+    strb w0, [x29, x8]
     mov w0, #98
-    strb w0, [x29, #-1083]
+    mov x8, #-1087
+    strb w0, [x29, x8]
     mov w0, #62
-    strb w0, [x29, #-1082]
-    mov w0, #119
-    strb w0, [x29, #-1081]
-    mov w0, #101
-    strb w0, [x29, #-1080]
-    mov w0, #32
-    strb w0, [x29, #-1079]
-    mov w0, #98
-    strb w0, [x29, #-1078]
-    mov w0, #97
-    strb w0, [x29, #-1077]
-    mov w0, #108
-    strb w0, [x29, #-1076]
-    mov w0, #108
-    strb w0, [x29, #-1075]
+    mov x8, #-1086
+    strb w0, [x29, x8]
+    mov w0, #52
+    mov x8, #-1085
+    strb w0, [x29, x8]
+    mov w0, #48
+    mov x8, #-1084
+    strb w0, [x29, x8]
+    mov w0, #52
+    mov x8, #-1083
+    strb w0, [x29, x8]
     mov w0, #60
-    strb w0, [x29, #-1074]
+    mov x8, #-1082
+    strb w0, [x29, x8]
     mov w0, #47
-    strb w0, [x29, #-1073]
+    mov x8, #-1081
+    strb w0, [x29, x8]
     mov w0, #98
-    strb w0, [x29, #-1072]
+    mov x8, #-1080
+    strb w0, [x29, x8]
     mov w0, #62
-    strb w0, [x29, #-1071]
+    mov x8, #-1079
+    strb w0, [x29, x8]
     mov w0, #60
-    strb w0, [x29, #-1070]
+    mov x8, #-1078
+    strb w0, [x29, x8]
     mov w0, #47
-    strb w0, [x29, #-1069]
+    mov x8, #-1077
+    strb w0, [x29, x8]
     mov w0, #98
-    strb w0, [x29, #-1068]
+    mov x8, #-1076
+    strb w0, [x29, x8]
     mov w0, #111
-    strb w0, [x29, #-1067]
+    mov x8, #-1075
+    strb w0, [x29, x8]
     mov w0, #100
-    strb w0, [x29, #-1066]
+    mov x8, #-1074
+    strb w0, [x29, x8]
     mov w0, #121
-    strb w0, [x29, #-1065]
+    mov x8, #-1073
+    strb w0, [x29, x8]
     mov w0, #62
-    strb w0, [x29, #-1064]
+    mov x8, #-1072
+    strb w0, [x29, x8]
+
+    ; Say variable declaration
+    mov w0, #0
+    mov x8, #-1176
+    str x0, [x29, x8]
 .L0_loop:
     mov w0, #1
-    mov x1, x0
-    mov w0, #0
-    cmp x1, x0
-    cset w0, gt
     cmp x0, #0
     beq .L0_end
 
@@ -341,41 +441,334 @@ socket_create_end:    str x0, [x29, #-32]
     mov x16, #30        // accept syscall
     svc #0x80
     mov x1, x0          // save client socket fd to x1
-    str x0, [x29, #-1176]
+    mov x8, #-1184
+    str x0, [x29, x8]
 
-    ; Socket read
-    ldr x0, [x29, #-1176]
-    mov x9, x0          // save socket fd to x9
-    add x0, x29, #-1063
-    mov x10, x0         // save buffer address to x10
-    mov x0, #1024
-    mov x11, x0         // save length to x11
-    mov x0, x9          // socket fd
-    mov x1, x10         // buffer address
-    mov x2, x11         // length
-    mov x16, #3         // read syscall
-    svc #0x80
-    cmp x0, #0
-    b.lt socket_read_error
-    mov x1, x0          // save number of bytes read to x1
-    b socket_read_end
-socket_read_error:
-    mov x1, #-1         // set error indicator
-socket_read_end:    add x0, x29, #-1063
-    mov x1, x0
-    mov x0, #1024
-    mov x2, x0
-    mov x3, #1024
-    cmp x2, x3
-    csel x2, x2, x3, ls
-    mov x0, #1     ; stdout file descriptor
-    mov x16, #4    ; write syscall number
-    svc 0
+    ; Say variable declaration
+    mov w0, #72
+    mov x8, #-1297
+    strb w0, [x29, x8]
+    mov w0, #84
+    mov x8, #-1296
+    strb w0, [x29, x8]
+    mov w0, #84
+    mov x8, #-1295
+    strb w0, [x29, x8]
+    mov w0, #80
+    mov x8, #-1294
+    strb w0, [x29, x8]
+    mov w0, #47
+    mov x8, #-1293
+    strb w0, [x29, x8]
+    mov w0, #49
+    mov x8, #-1292
+    strb w0, [x29, x8]
+    mov w0, #46
+    mov x8, #-1291
+    strb w0, [x29, x8]
+    mov w0, #49
+    mov x8, #-1290
+    strb w0, [x29, x8]
+    mov w0, #32
+    mov x8, #-1289
+    strb w0, [x29, x8]
+    mov w0, #50
+    mov x8, #-1288
+    strb w0, [x29, x8]
+    mov w0, #48
+    mov x8, #-1287
+    strb w0, [x29, x8]
+    mov w0, #48
+    mov x8, #-1286
+    strb w0, [x29, x8]
+    mov w0, #10
+    mov x8, #-1285
+    strb w0, [x29, x8]
+    mov w0, #67
+    mov x8, #-1284
+    strb w0, [x29, x8]
+    mov w0, #111
+    mov x8, #-1283
+    strb w0, [x29, x8]
+    mov w0, #110
+    mov x8, #-1282
+    strb w0, [x29, x8]
+    mov w0, #116
+    mov x8, #-1281
+    strb w0, [x29, x8]
+    mov w0, #101
+    mov x8, #-1280
+    strb w0, [x29, x8]
+    mov w0, #110
+    mov x8, #-1279
+    strb w0, [x29, x8]
+    mov w0, #116
+    mov x8, #-1278
+    strb w0, [x29, x8]
+    mov w0, #45
+    mov x8, #-1277
+    strb w0, [x29, x8]
+    mov w0, #84
+    mov x8, #-1276
+    strb w0, [x29, x8]
+    mov w0, #121
+    mov x8, #-1275
+    strb w0, [x29, x8]
+    mov w0, #112
+    mov x8, #-1274
+    strb w0, [x29, x8]
+    mov w0, #101
+    mov x8, #-1273
+    strb w0, [x29, x8]
+    mov w0, #58
+    mov x8, #-1272
+    strb w0, [x29, x8]
+    mov w0, #32
+    mov x8, #-1271
+    strb w0, [x29, x8]
+    mov w0, #116
+    mov x8, #-1270
+    strb w0, [x29, x8]
+    mov w0, #101
+    mov x8, #-1269
+    strb w0, [x29, x8]
+    mov w0, #120
+    mov x8, #-1268
+    strb w0, [x29, x8]
+    mov w0, #116
+    mov x8, #-1267
+    strb w0, [x29, x8]
+    mov w0, #47
+    mov x8, #-1266
+    strb w0, [x29, x8]
+    mov w0, #104
+    mov x8, #-1265
+    strb w0, [x29, x8]
+    mov w0, #116
+    mov x8, #-1264
+    strb w0, [x29, x8]
+    mov w0, #109
+    mov x8, #-1263
+    strb w0, [x29, x8]
+    mov w0, #108
+    mov x8, #-1262
+    strb w0, [x29, x8]
+    mov w0, #10
+    mov x8, #-1261
+    strb w0, [x29, x8]
+    mov w0, #67
+    mov x8, #-1260
+    strb w0, [x29, x8]
+    mov w0, #111
+    mov x8, #-1259
+    strb w0, [x29, x8]
+    mov w0, #110
+    mov x8, #-1258
+    strb w0, [x29, x8]
+    mov w0, #116
+    mov x8, #-1257
+    strb w0, [x29, x8]
+    mov w0, #101
+    mov x8, #-1256
+    strb w0, [x29, x8]
+    mov w0, #110
+    mov x8, #-1255
+    strb w0, [x29, x8]
+    mov w0, #116
+    mov x8, #-1254
+    strb w0, [x29, x8]
+    mov w0, #45
+    mov x8, #-1253
+    strb w0, [x29, x8]
+    mov w0, #76
+    mov x8, #-1252
+    strb w0, [x29, x8]
+    mov w0, #101
+    mov x8, #-1251
+    strb w0, [x29, x8]
+    mov w0, #110
+    mov x8, #-1250
+    strb w0, [x29, x8]
+    mov w0, #103
+    mov x8, #-1249
+    strb w0, [x29, x8]
+    mov w0, #116
+    mov x8, #-1248
+    strb w0, [x29, x8]
+    mov w0, #104
+    mov x8, #-1247
+    strb w0, [x29, x8]
+    mov w0, #58
+    mov x8, #-1246
+    strb w0, [x29, x8]
+    mov w0, #32
+    mov x8, #-1245
+    strb w0, [x29, x8]
+    mov w0, #52
+    mov x8, #-1244
+    strb w0, [x29, x8]
+    mov w0, #57
+    mov x8, #-1243
+    strb w0, [x29, x8]
+    mov w0, #10
+    mov x8, #-1242
+    strb w0, [x29, x8]
+    mov w0, #10
+    mov x8, #-1241
+    strb w0, [x29, x8]
+    mov w0, #60
+    mov x8, #-1240
+    strb w0, [x29, x8]
+    mov w0, #116
+    mov x8, #-1239
+    strb w0, [x29, x8]
+    mov w0, #105
+    mov x8, #-1238
+    strb w0, [x29, x8]
+    mov w0, #116
+    mov x8, #-1237
+    strb w0, [x29, x8]
+    mov w0, #108
+    mov x8, #-1236
+    strb w0, [x29, x8]
+    mov w0, #101
+    mov x8, #-1235
+    strb w0, [x29, x8]
+    mov w0, #62
+    mov x8, #-1234
+    strb w0, [x29, x8]
+    mov w0, #71
+    mov x8, #-1233
+    strb w0, [x29, x8]
+    mov w0, #97
+    mov x8, #-1232
+    strb w0, [x29, x8]
+    mov w0, #114
+    mov x8, #-1231
+    strb w0, [x29, x8]
+    mov w0, #98
+    mov x8, #-1230
+    strb w0, [x29, x8]
+    mov w0, #97
+    mov x8, #-1229
+    strb w0, [x29, x8]
+    mov w0, #103
+    mov x8, #-1228
+    strb w0, [x29, x8]
+    mov w0, #101
+    mov x8, #-1227
+    strb w0, [x29, x8]
+    mov w0, #60
+    mov x8, #-1226
+    strb w0, [x29, x8]
+    mov w0, #47
+    mov x8, #-1225
+    strb w0, [x29, x8]
+    mov w0, #116
+    mov x8, #-1224
+    strb w0, [x29, x8]
+    mov w0, #105
+    mov x8, #-1223
+    strb w0, [x29, x8]
+    mov w0, #116
+    mov x8, #-1222
+    strb w0, [x29, x8]
+    mov w0, #108
+    mov x8, #-1221
+    strb w0, [x29, x8]
+    mov w0, #101
+    mov x8, #-1220
+    strb w0, [x29, x8]
+    mov w0, #62
+    mov x8, #-1219
+    strb w0, [x29, x8]
+    mov w0, #60
+    mov x8, #-1218
+    strb w0, [x29, x8]
+    mov w0, #98
+    mov x8, #-1217
+    strb w0, [x29, x8]
+    mov w0, #111
+    mov x8, #-1216
+    strb w0, [x29, x8]
+    mov w0, #100
+    mov x8, #-1215
+    strb w0, [x29, x8]
+    mov w0, #121
+    mov x8, #-1214
+    strb w0, [x29, x8]
+    mov w0, #62
+    mov x8, #-1213
+    strb w0, [x29, x8]
+    mov w0, #60
+    mov x8, #-1212
+    strb w0, [x29, x8]
+    mov w0, #98
+    mov x8, #-1211
+    strb w0, [x29, x8]
+    mov w0, #62
+    mov x8, #-1210
+    strb w0, [x29, x8]
+    mov w0, #119
+    mov x8, #-1209
+    strb w0, [x29, x8]
+    mov w0, #101
+    mov x8, #-1208
+    strb w0, [x29, x8]
+    mov w0, #32
+    mov x8, #-1207
+    strb w0, [x29, x8]
+    mov w0, #98
+    mov x8, #-1206
+    strb w0, [x29, x8]
+    mov w0, #97
+    mov x8, #-1205
+    strb w0, [x29, x8]
+    mov w0, #108
+    mov x8, #-1204
+    strb w0, [x29, x8]
+    mov w0, #108
+    mov x8, #-1203
+    strb w0, [x29, x8]
+    mov w0, #60
+    mov x8, #-1202
+    strb w0, [x29, x8]
+    mov w0, #47
+    mov x8, #-1201
+    strb w0, [x29, x8]
+    mov w0, #98
+    mov x8, #-1200
+    strb w0, [x29, x8]
+    mov w0, #62
+    mov x8, #-1199
+    strb w0, [x29, x8]
+    mov w0, #60
+    mov x8, #-1198
+    strb w0, [x29, x8]
+    mov w0, #47
+    mov x8, #-1197
+    strb w0, [x29, x8]
+    mov w0, #98
+    mov x8, #-1196
+    strb w0, [x29, x8]
+    mov w0, #111
+    mov x8, #-1195
+    strb w0, [x29, x8]
+    mov w0, #100
+    mov x8, #-1194
+    strb w0, [x29, x8]
+    mov w0, #121
+    mov x8, #-1193
+    strb w0, [x29, x8]
+    mov w0, #62
+    mov x8, #-1192
+    strb w0, [x29, x8]
 
     ; Socket write
-    ldr x0, [x29, #-1176]
+    mov x8, #-1184
+    ldr x0, [x29, x8]
     mov x9, x0          // save socket fd to x9
-    add x0, x29, #-1169
+    add x0, x29, #-1297
     mov x10, x0         // save buffer address to x10
     mov w0, #106
     mov x11, x0         // save length to x11
@@ -387,7 +780,8 @@ socket_read_end:    add x0, x29, #-1063
     mov x1, x0          // save number of bytes written to x1
 
     ; Socket close
-    ldr x0, [x29, #-1176]
+    mov x8, #-1184
+    ldr x0, [x29, x8]
     mov x9, x0          // save socket fd to x9
     mov x0, x9          // socket fd
     mov x16, #6         // close syscall

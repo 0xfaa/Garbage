@@ -331,8 +331,8 @@ fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable, parent_var_
             } else if (node.left) |left| {
                 try codegen(left, writer, symbol_table, null);
                 switch (type_enum.type_enum) {
-                    .U8 => try writer.print("    strb w0, [x29, #-{}]\n", .{offset}),
-                    .U64, .Pointer => try writer.print("    str x0, [x29, #-{}]\n", .{offset}),
+                    .U8 => try generateLoadStore(writer, true, 1, "w0", "x29", -@as(i32, @intCast(offset))),
+                    .U64, .Pointer => try generateLoadStore(writer, true, 8, "x0", "x29", -@as(i32, @intCast(offset))),
                     .Array => unreachable, // Handled above
                 }
             }
@@ -346,9 +346,9 @@ fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable, parent_var_
             std.debug.print("VAR OFFSET: {}\n", .{offset});
 
             switch (var_type.type_enum) {
-                .U8 => try writer.print("    ldrb w0, [x29, #-{}]\n", .{offset}),
-                .U64 => try writer.print("    ldr x0, [x29, #-{}]\n", .{offset}),
-                .Pointer => try writer.print("    ldr x0, [x29, #-{}]\n", .{offset}),
+                .U8 => try generateLoadStore(writer, false, 1, "w0", "x29", -@as(i32, @intCast(offset))),
+                .U64 => try generateLoadStore(writer, false, 8, "x0", "x29", -@as(i32, @intCast(offset))),
+                .Pointer => try generateLoadStore(writer, false, 8, "x0", "x29", -@as(i32, @intCast(offset))),
                 .Array => {
                     const arr_length = var_type.array_size.?;
                     std.debug.print("ARR LENGTH: {?}\n", .{arr_length});
@@ -502,8 +502,8 @@ fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable, parent_var_
 
                 // Store the result in the variable
                 switch (var_type.type_enum) {
-                    .U8 => try writer.print("    strb w0, [x29, #-{}]\n", .{offset}),
-                    .U64, .Pointer => try writer.print("    str x0, [x29, #-{}]\n", .{offset}),
+                    .U8 => try generateLoadStore(writer, true, 1, "w0", "x29", -@as(i32, @intCast(offset))),
+                    .U64, .Pointer => try generateLoadStore(writer, true, 8, "x0", "x29", -@as(i32, @intCast(offset))),
                     .Array => return error.UnexpectedVar,
                 }
             }
@@ -552,8 +552,8 @@ fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable, parent_var_
                 try codegen(element, writer, symbol_table, null);
                 const adjusted_offset = offset + (actual_size - 1 - i) * element_size;
                 switch (element_type.type_enum) {
-                    .U8 => try writer.print("    strb w0, [x29, #-{}]\n", .{adjusted_offset}),
-                    .U64 => try writer.print("    str x0, [x29, #-{}]\n", .{adjusted_offset}),
+                    .U8 => try generateLoadStore(writer, true, 1, "w0", "x29", -@as(i32, @intCast(adjusted_offset))),
+                    .U64 => try generateLoadStore(writer, true, 8, "x0", "x29", -@as(i32, @intCast(adjusted_offset))),
                     else => return error.UnsupportedArrayElementType,
                 }
             }
@@ -730,14 +730,14 @@ fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable, parent_var_
             for (str_value[0..actual_size], 0..) |char, i| {
                 const adjusted_offset = offset + (declared_size - 1 - i);
                 try writer.print("    mov w0, #{}\n", .{char});
-                try writer.print("    strb w0, [x29, #-{}]\n", .{adjusted_offset});
+                try generateLoadStore(writer, true, 1, "w0", "x29", -@as(i32, @intCast(adjusted_offset)));
             }
 
             // Null-terminate if there's space
             if (actual_size < declared_size) {
                 const null_terminator_offset = offset + (declared_size - actual_size - 1);
                 try writer.print("    mov w0, #0\n", .{});
-                try writer.print("    strb w0, [x29, #-{}]\n", .{null_terminator_offset});
+                try generateLoadStore(writer, true, 1, "w0", "x29", -@as(i32, @intCast(null_terminator_offset)));
             }
         },
         .SocketRead => {
@@ -778,4 +778,21 @@ fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable, parent_var_
         },
     }
     std.debug.print("codegen: Finished processing node of type: {s}\n", .{@tagName(node.type)});
+}
+
+fn generateLoadStore(writer: anytype, is_store: bool, size: u8, reg: []const u8, base: []const u8, offset: i32) !void {
+    const op = if (is_store) "str" else "ldr";
+    const suffix = switch (size) {
+        1 => "b",
+        4 => "",
+        8 => "",
+        else => return error.UnsupportedSize,
+    };
+
+    if (offset >= -256 and offset <= 255) {
+        try writer.print("    {s}{s} {s}, [{s}, #{}]\n", .{ op, suffix, reg, base, offset });
+    } else {
+        try writer.print("    mov x8, #{}\n", .{offset});
+        try writer.print("    {s}{s} {s}, [{s}, x8]\n", .{ op, suffix, reg, base });
+    }
 }

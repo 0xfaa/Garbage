@@ -36,7 +36,31 @@ pub fn lexer(input: []const u8, allocator: std.mem.Allocator) LexerError!LexerRe
     while (i < input.len) : (i += 1) {
         const c = input[i];
         switch (c) {
-            '{', '}', ':', '&', '+', '-', '*', '/', '%', '<', '>', '(', ')', '[', ']', ',' => try handleSingleCharToken(&tokens, c),
+            '&' => {
+                if (i + 1 < input.len and input[i + 1] == '&') {
+                    try appendToken(&tokens, .LogicalAnd, "&&");
+                    i += 1;
+                } else {
+                    try handleSingleCharToken(&tokens, c);
+                }
+            },
+            '>' => {
+                if (i + 1 < input.len and input[i + 1] == '=') {
+                    try appendToken(&tokens, .GreaterEqual, ">=");
+                    i += 1;
+                } else {
+                    try handleSingleCharToken(&tokens, c);
+                }
+            },
+            '<' => {
+                if (i + 1 < input.len and input[i + 1] == '=') {
+                    try appendToken(&tokens, .LessEqual, "<=");
+                    i += 1;
+                } else {
+                    try handleSingleCharToken(&tokens, c);
+                }
+            },
+            '{', '}', ':', '+', '-', '*', '/', '%', '(', ')', '[', ']', ',' => try handleSingleCharToken(&tokens, c),
             '@' => i = try handleAtCommand(&tokens, input, i),
             '0'...'9' => i = try handleNumber(&tokens, input, i),
             'a'...'z', 'A'...'Z', '_' => i = try handleIdentifier(&tokens, input, i),
