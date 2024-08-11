@@ -29,7 +29,7 @@ pub fn build(b: *std.Build) void {
     // running `zig build`).
     // b.installArtifact(lib);
     const exe = b.addExecutable(.{
-        .name = "shmob-compiler",
+        .name = "garbage",
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,

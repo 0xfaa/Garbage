@@ -740,6 +740,38 @@ fn codegen(node: *Node, writer: anytype, symbol_table: *SymbolTable, parent_var_
                 try writer.print("    strb w0, [x29, #-{}]\n", .{null_terminator_offset});
             }
         },
+        .SocketRead => {
+            try writer.writeAll(
+                \\
+                \\    ; Socket read
+                \\
+            );
+            if (node.left) |socket_fd| try codegen(socket_fd, writer, symbol_table, null);
+            try writer.writeAll("    mov x9, x0          // save socket fd to x9\n");
+
+            // Generate code for buffer argument
+            if (node.right) |buffer| try codegen(buffer, writer, symbol_table, null);
+            try writer.writeAll("    mov x10, x0         // save buffer address to x10\n");
+
+            // Generate code for length argument
+            if (node.extra) |length| try codegen(length, writer, symbol_table, null);
+            try writer.writeAll("    mov x11, x0         // save length to x11\n");
+
+            try writer.writeAll(
+                \\    mov x0, x9          // socket fd
+                \\    mov x1, x10         // buffer address
+                \\    mov x2, x11         // length
+                \\    mov x16, #3         // read syscall
+                \\    svc #0x80
+                \\    cmp x0, #0
+                \\    b.lt socket_read_error
+                \\    mov x1, x0          // save number of bytes read to x1
+                \\    b socket_read_end
+                \\socket_read_error:
+                \\    mov x1, #-1         // set error indicator
+                \\socket_read_end:
+            );
+        },
         else => {
             std.debug.print("codegen: Unsupported node type: {s}\n", .{@tagName(node.type)});
             return error.UnsupportedNodeType;

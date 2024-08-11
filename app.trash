@@ -1,0 +1,18 @@
+say server_socket: u64 = @socket_create()
+@socket_bind(server_socket, 6969)
+@socket_listen(server_socket, 5)
+
+say buffer: [1024]u8 = {}
+say response: [106]u8 = "HTTP/1.1 200\nContent-Type: text/html\nContent-Length: 49\n\n<title>Garbage</title><body><b>we ball</b></body>"
+
+while 1 > 0 {
+    say client_socket: u64 = @socket_accept(server_socket)
+    @socket_read(client_socket, buffer, 1024)
+    @print_buf(buffer, 1024)
+
+    @socket_write(client_socket, response, 106)
+    @socket_close(client_socket)
+}
+
+@socket_close(server_socket)
+@print_int(0)

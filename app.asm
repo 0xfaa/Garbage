@@ -40,7 +40,7 @@ ret
 _main:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
-    sub sp, sp, #48
+    sub sp, sp, #1184
 
     ; Say variable declaration
     mov x0, #2          // AF_INET
@@ -105,6 +105,222 @@ socket_create_end:    str x0, [x29, #-32]
     mov x16, #106       // listen syscall
     svc #0x80
     mov x1, x0          // save result to x1
+
+    ; Say variable declaration
+
+    ; Say variable declaration
+    mov w0, #72
+    strb w0, [x29, #-1169]
+    mov w0, #84
+    strb w0, [x29, #-1168]
+    mov w0, #84
+    strb w0, [x29, #-1167]
+    mov w0, #80
+    strb w0, [x29, #-1166]
+    mov w0, #47
+    strb w0, [x29, #-1165]
+    mov w0, #49
+    strb w0, [x29, #-1164]
+    mov w0, #46
+    strb w0, [x29, #-1163]
+    mov w0, #49
+    strb w0, [x29, #-1162]
+    mov w0, #32
+    strb w0, [x29, #-1161]
+    mov w0, #50
+    strb w0, [x29, #-1160]
+    mov w0, #48
+    strb w0, [x29, #-1159]
+    mov w0, #48
+    strb w0, [x29, #-1158]
+    mov w0, #10
+    strb w0, [x29, #-1157]
+    mov w0, #67
+    strb w0, [x29, #-1156]
+    mov w0, #111
+    strb w0, [x29, #-1155]
+    mov w0, #110
+    strb w0, [x29, #-1154]
+    mov w0, #116
+    strb w0, [x29, #-1153]
+    mov w0, #101
+    strb w0, [x29, #-1152]
+    mov w0, #110
+    strb w0, [x29, #-1151]
+    mov w0, #116
+    strb w0, [x29, #-1150]
+    mov w0, #45
+    strb w0, [x29, #-1149]
+    mov w0, #84
+    strb w0, [x29, #-1148]
+    mov w0, #121
+    strb w0, [x29, #-1147]
+    mov w0, #112
+    strb w0, [x29, #-1146]
+    mov w0, #101
+    strb w0, [x29, #-1145]
+    mov w0, #58
+    strb w0, [x29, #-1144]
+    mov w0, #32
+    strb w0, [x29, #-1143]
+    mov w0, #116
+    strb w0, [x29, #-1142]
+    mov w0, #101
+    strb w0, [x29, #-1141]
+    mov w0, #120
+    strb w0, [x29, #-1140]
+    mov w0, #116
+    strb w0, [x29, #-1139]
+    mov w0, #47
+    strb w0, [x29, #-1138]
+    mov w0, #104
+    strb w0, [x29, #-1137]
+    mov w0, #116
+    strb w0, [x29, #-1136]
+    mov w0, #109
+    strb w0, [x29, #-1135]
+    mov w0, #108
+    strb w0, [x29, #-1134]
+    mov w0, #10
+    strb w0, [x29, #-1133]
+    mov w0, #67
+    strb w0, [x29, #-1132]
+    mov w0, #111
+    strb w0, [x29, #-1131]
+    mov w0, #110
+    strb w0, [x29, #-1130]
+    mov w0, #116
+    strb w0, [x29, #-1129]
+    mov w0, #101
+    strb w0, [x29, #-1128]
+    mov w0, #110
+    strb w0, [x29, #-1127]
+    mov w0, #116
+    strb w0, [x29, #-1126]
+    mov w0, #45
+    strb w0, [x29, #-1125]
+    mov w0, #76
+    strb w0, [x29, #-1124]
+    mov w0, #101
+    strb w0, [x29, #-1123]
+    mov w0, #110
+    strb w0, [x29, #-1122]
+    mov w0, #103
+    strb w0, [x29, #-1121]
+    mov w0, #116
+    strb w0, [x29, #-1120]
+    mov w0, #104
+    strb w0, [x29, #-1119]
+    mov w0, #58
+    strb w0, [x29, #-1118]
+    mov w0, #32
+    strb w0, [x29, #-1117]
+    mov w0, #52
+    strb w0, [x29, #-1116]
+    mov w0, #57
+    strb w0, [x29, #-1115]
+    mov w0, #10
+    strb w0, [x29, #-1114]
+    mov w0, #10
+    strb w0, [x29, #-1113]
+    mov w0, #60
+    strb w0, [x29, #-1112]
+    mov w0, #116
+    strb w0, [x29, #-1111]
+    mov w0, #105
+    strb w0, [x29, #-1110]
+    mov w0, #116
+    strb w0, [x29, #-1109]
+    mov w0, #108
+    strb w0, [x29, #-1108]
+    mov w0, #101
+    strb w0, [x29, #-1107]
+    mov w0, #62
+    strb w0, [x29, #-1106]
+    mov w0, #71
+    strb w0, [x29, #-1105]
+    mov w0, #97
+    strb w0, [x29, #-1104]
+    mov w0, #114
+    strb w0, [x29, #-1103]
+    mov w0, #98
+    strb w0, [x29, #-1102]
+    mov w0, #97
+    strb w0, [x29, #-1101]
+    mov w0, #103
+    strb w0, [x29, #-1100]
+    mov w0, #101
+    strb w0, [x29, #-1099]
+    mov w0, #60
+    strb w0, [x29, #-1098]
+    mov w0, #47
+    strb w0, [x29, #-1097]
+    mov w0, #116
+    strb w0, [x29, #-1096]
+    mov w0, #105
+    strb w0, [x29, #-1095]
+    mov w0, #116
+    strb w0, [x29, #-1094]
+    mov w0, #108
+    strb w0, [x29, #-1093]
+    mov w0, #101
+    strb w0, [x29, #-1092]
+    mov w0, #62
+    strb w0, [x29, #-1091]
+    mov w0, #60
+    strb w0, [x29, #-1090]
+    mov w0, #98
+    strb w0, [x29, #-1089]
+    mov w0, #111
+    strb w0, [x29, #-1088]
+    mov w0, #100
+    strb w0, [x29, #-1087]
+    mov w0, #121
+    strb w0, [x29, #-1086]
+    mov w0, #62
+    strb w0, [x29, #-1085]
+    mov w0, #60
+    strb w0, [x29, #-1084]
+    mov w0, #98
+    strb w0, [x29, #-1083]
+    mov w0, #62
+    strb w0, [x29, #-1082]
+    mov w0, #119
+    strb w0, [x29, #-1081]
+    mov w0, #101
+    strb w0, [x29, #-1080]
+    mov w0, #32
+    strb w0, [x29, #-1079]
+    mov w0, #98
+    strb w0, [x29, #-1078]
+    mov w0, #97
+    strb w0, [x29, #-1077]
+    mov w0, #108
+    strb w0, [x29, #-1076]
+    mov w0, #108
+    strb w0, [x29, #-1075]
+    mov w0, #60
+    strb w0, [x29, #-1074]
+    mov w0, #47
+    strb w0, [x29, #-1073]
+    mov w0, #98
+    strb w0, [x29, #-1072]
+    mov w0, #62
+    strb w0, [x29, #-1071]
+    mov w0, #60
+    strb w0, [x29, #-1070]
+    mov w0, #47
+    strb w0, [x29, #-1069]
+    mov w0, #98
+    strb w0, [x29, #-1068]
+    mov w0, #111
+    strb w0, [x29, #-1067]
+    mov w0, #100
+    strb w0, [x29, #-1066]
+    mov w0, #121
+    strb w0, [x29, #-1065]
+    mov w0, #62
+    strb w0, [x29, #-1064]
 .L0_loop:
     mov w0, #1
     mov x1, x0
@@ -125,228 +341,43 @@ socket_create_end:    str x0, [x29, #-32]
     mov x16, #30        // accept syscall
     svc #0x80
     mov x1, x0          // save client socket fd to x1
-    str x0, [x29, #-40]
+    str x0, [x29, #-1176]
 
-    ; Say variable declaration
-    mov w0, #72
-    strb w0, [x29, #-153]
-    mov w0, #84
-    strb w0, [x29, #-152]
-    mov w0, #84
-    strb w0, [x29, #-151]
-    mov w0, #80
-    strb w0, [x29, #-150]
-    mov w0, #47
-    strb w0, [x29, #-149]
-    mov w0, #49
-    strb w0, [x29, #-148]
-    mov w0, #46
-    strb w0, [x29, #-147]
-    mov w0, #49
-    strb w0, [x29, #-146]
-    mov w0, #32
-    strb w0, [x29, #-145]
-    mov w0, #50
-    strb w0, [x29, #-144]
-    mov w0, #48
-    strb w0, [x29, #-143]
-    mov w0, #48
-    strb w0, [x29, #-142]
-    mov w0, #10
-    strb w0, [x29, #-141]
-    mov w0, #67
-    strb w0, [x29, #-140]
-    mov w0, #111
-    strb w0, [x29, #-139]
-    mov w0, #110
-    strb w0, [x29, #-138]
-    mov w0, #116
-    strb w0, [x29, #-137]
-    mov w0, #101
-    strb w0, [x29, #-136]
-    mov w0, #110
-    strb w0, [x29, #-135]
-    mov w0, #116
-    strb w0, [x29, #-134]
-    mov w0, #45
-    strb w0, [x29, #-133]
-    mov w0, #84
-    strb w0, [x29, #-132]
-    mov w0, #121
-    strb w0, [x29, #-131]
-    mov w0, #112
-    strb w0, [x29, #-130]
-    mov w0, #101
-    strb w0, [x29, #-129]
-    mov w0, #58
-    strb w0, [x29, #-128]
-    mov w0, #32
-    strb w0, [x29, #-127]
-    mov w0, #116
-    strb w0, [x29, #-126]
-    mov w0, #101
-    strb w0, [x29, #-125]
-    mov w0, #120
-    strb w0, [x29, #-124]
-    mov w0, #116
-    strb w0, [x29, #-123]
-    mov w0, #47
-    strb w0, [x29, #-122]
-    mov w0, #104
-    strb w0, [x29, #-121]
-    mov w0, #116
-    strb w0, [x29, #-120]
-    mov w0, #109
-    strb w0, [x29, #-119]
-    mov w0, #108
-    strb w0, [x29, #-118]
-    mov w0, #10
-    strb w0, [x29, #-117]
-    mov w0, #67
-    strb w0, [x29, #-116]
-    mov w0, #111
-    strb w0, [x29, #-115]
-    mov w0, #110
-    strb w0, [x29, #-114]
-    mov w0, #116
-    strb w0, [x29, #-113]
-    mov w0, #101
-    strb w0, [x29, #-112]
-    mov w0, #110
-    strb w0, [x29, #-111]
-    mov w0, #116
-    strb w0, [x29, #-110]
-    mov w0, #45
-    strb w0, [x29, #-109]
-    mov w0, #76
-    strb w0, [x29, #-108]
-    mov w0, #101
-    strb w0, [x29, #-107]
-    mov w0, #110
-    strb w0, [x29, #-106]
-    mov w0, #103
-    strb w0, [x29, #-105]
-    mov w0, #116
-    strb w0, [x29, #-104]
-    mov w0, #104
-    strb w0, [x29, #-103]
-    mov w0, #58
-    strb w0, [x29, #-102]
-    mov w0, #32
-    strb w0, [x29, #-101]
-    mov w0, #52
-    strb w0, [x29, #-100]
-    mov w0, #57
-    strb w0, [x29, #-99]
-    mov w0, #10
-    strb w0, [x29, #-98]
-    mov w0, #10
-    strb w0, [x29, #-97]
-    mov w0, #60
-    strb w0, [x29, #-96]
-    mov w0, #116
-    strb w0, [x29, #-95]
-    mov w0, #105
-    strb w0, [x29, #-94]
-    mov w0, #116
-    strb w0, [x29, #-93]
-    mov w0, #108
-    strb w0, [x29, #-92]
-    mov w0, #101
-    strb w0, [x29, #-91]
-    mov w0, #62
-    strb w0, [x29, #-90]
-    mov w0, #71
-    strb w0, [x29, #-89]
-    mov w0, #97
-    strb w0, [x29, #-88]
-    mov w0, #114
-    strb w0, [x29, #-87]
-    mov w0, #98
-    strb w0, [x29, #-86]
-    mov w0, #97
-    strb w0, [x29, #-85]
-    mov w0, #103
-    strb w0, [x29, #-84]
-    mov w0, #101
-    strb w0, [x29, #-83]
-    mov w0, #60
-    strb w0, [x29, #-82]
-    mov w0, #47
-    strb w0, [x29, #-81]
-    mov w0, #116
-    strb w0, [x29, #-80]
-    mov w0, #105
-    strb w0, [x29, #-79]
-    mov w0, #116
-    strb w0, [x29, #-78]
-    mov w0, #108
-    strb w0, [x29, #-77]
-    mov w0, #101
-    strb w0, [x29, #-76]
-    mov w0, #62
-    strb w0, [x29, #-75]
-    mov w0, #60
-    strb w0, [x29, #-74]
-    mov w0, #98
-    strb w0, [x29, #-73]
-    mov w0, #111
-    strb w0, [x29, #-72]
-    mov w0, #100
-    strb w0, [x29, #-71]
-    mov w0, #121
-    strb w0, [x29, #-70]
-    mov w0, #62
-    strb w0, [x29, #-69]
-    mov w0, #60
-    strb w0, [x29, #-68]
-    mov w0, #98
-    strb w0, [x29, #-67]
-    mov w0, #62
-    strb w0, [x29, #-66]
-    mov w0, #119
-    strb w0, [x29, #-65]
-    mov w0, #101
-    strb w0, [x29, #-64]
-    mov w0, #32
-    strb w0, [x29, #-63]
-    mov w0, #98
-    strb w0, [x29, #-62]
-    mov w0, #97
-    strb w0, [x29, #-61]
-    mov w0, #108
-    strb w0, [x29, #-60]
-    mov w0, #108
-    strb w0, [x29, #-59]
-    mov w0, #60
-    strb w0, [x29, #-58]
-    mov w0, #47
-    strb w0, [x29, #-57]
-    mov w0, #98
-    strb w0, [x29, #-56]
-    mov w0, #62
-    strb w0, [x29, #-55]
-    mov w0, #60
-    strb w0, [x29, #-54]
-    mov w0, #47
-    strb w0, [x29, #-53]
-    mov w0, #98
-    strb w0, [x29, #-52]
-    mov w0, #111
-    strb w0, [x29, #-51]
-    mov w0, #100
-    strb w0, [x29, #-50]
-    mov w0, #121
-    strb w0, [x29, #-49]
-    mov w0, #62
-    strb w0, [x29, #-48]
+    ; Socket read
+    ldr x0, [x29, #-1176]
+    mov x9, x0          // save socket fd to x9
+    add x0, x29, #-1063
+    mov x10, x0         // save buffer address to x10
+    mov x0, #1024
+    mov x11, x0         // save length to x11
+    mov x0, x9          // socket fd
+    mov x1, x10         // buffer address
+    mov x2, x11         // length
+    mov x16, #3         // read syscall
+    svc #0x80
+    cmp x0, #0
+    b.lt socket_read_error
+    mov x1, x0          // save number of bytes read to x1
+    b socket_read_end
+socket_read_error:
+    mov x1, #-1         // set error indicator
+socket_read_end:    add x0, x29, #-1063
+    mov x1, x0
+    mov x0, #1024
+    mov x2, x0
+    mov x3, #1024
+    cmp x2, x3
+    csel x2, x2, x3, ls
+    mov x0, #1     ; stdout file descriptor
+    mov x16, #4    ; write syscall number
+    svc 0
 
     ; Socket write
-    ldr x0, [x29, #-40]
+    ldr x0, [x29, #-1176]
     mov x9, x0          // save socket fd to x9
-    add x0, x29, #-153
+    add x0, x29, #-1169
     mov x10, x0         // save buffer address to x10
-    mov w0, #111
+    mov w0, #106
     mov x11, x0         // save length to x11
     mov x0, x9          // socket fd
     mov x1, x10         // buffer address
@@ -356,35 +387,12 @@ socket_create_end:    str x0, [x29, #-32]
     mov x1, x0          // save number of bytes written to x1
 
     ; Socket close
-    ldr x0, [x29, #-40]
+    ldr x0, [x29, #-1176]
     mov x9, x0          // save socket fd to x9
     mov x0, x9          // socket fd
     mov x16, #6         // close syscall
     svc #0x80
     mov x1, x0          // save result to x1
-
-    ; Say variable declaration
-    mov w0, #104
-    strb w0, [x29, #-162]
-    mov w0, #105
-    strb w0, [x29, #-161]
-    mov w0, #10
-    strb w0, [x29, #-160]
-    add x1, x29, #-162
-    mov w0, #1
-    add x1, x1, x0
-    mov w0, #42
-    strb w0, [x1]
-    add x0, x29, #-162
-    mov x1, x0
-    mov w0, #3
-    mov x2, x0
-    mov x3, #3
-    cmp x2, x3
-    csel x2, x2, x3, ls
-    mov x0, #1     ; stdout file descriptor
-    mov x16, #4    ; write syscall number
-    svc 0
     b .L0_loop
 .L0_end:
 
@@ -397,7 +405,7 @@ socket_create_end:    str x0, [x29, #-32]
     mov x1, x0          // save result to x1
     mov w0, #0
     bl _printInt
-    add sp, sp, #32
+    add sp, sp, #1168
     ldp x29, x30, [sp], #16
 
 _terminate:
