@@ -1,0 +1,2 @@
+say a: [14]u8 = "hello, world!\n"
+@print_buf(a, 14)
