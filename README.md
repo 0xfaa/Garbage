@@ -1,11 +1,11 @@
 # Garbage Compiler
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/42b84dbc-1441-4d19-861e-395dfd0220c4"/>
-  <img src="https://github.com/user-attachments/assets/42b84dbc-1441-4d19-861e-395dfd0220c4"/>
-  <img src="https://github.com/user-attachments/assets/42b84dbc-1441-4d19-861e-395dfd0220c4"/>
-  <img src="https://github.com/user-attachments/assets/42b84dbc-1441-4d19-861e-395dfd0220c4"/>
-  <img src="https://github.com/user-attachments/assets/42b84dbc-1441-4d19-861e-395dfd0220c4"/>
+  <img src="https://github.com/user-attachments/assets/dfc77570-6cc8-42df-8b89-f037b75e3623"/>
+  <img src="https://github.com/user-attachments/assets/dfc77570-6cc8-42df-8b89-f037b75e3623"/>
+  <img src="https://github.com/user-attachments/assets/dfc77570-6cc8-42df-8b89-f037b75e3623"/>
+  <img src="https://github.com/user-attachments/assets/dfc77570-6cc8-42df-8b89-f037b75e3623"/>
+  <img src="https://github.com/user-attachments/assets/dfc77570-6cc8-42df-8b89-f037b75e3623"/>
 </p>
 
 Garbage is a low-level programming language compiler developed as a capstone project. It targets AArch64 assembly for MacOS on Apple Silicon (M1/M2/M3) processors.
